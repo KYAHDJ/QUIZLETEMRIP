@@ -1,38 +1,37 @@
 <?php
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST');
-header('Access-Control-Allow-Headers: Content-Type');
+header("Access-Control-Allow-Origin: *");
+header("Content-Type: application/json");
 
-$servername = "sql100.infinityfree.com";
-$username = "if0_40590891";
-$password = "JnxF6pWuQV";
-$dbname = "if0_40590891_QUIZLETEMRIP";
-
-$conn = new mysqli($servername, $username, $password, $dbname);
-
-if ($conn->connect_error) {
-    die(json_encode(["success" => false, "error" => "Connection failed"]));
-}
-
-$data = json_decode(file_get_contents('php://input'), true);
-
-$stmt = $conn->prepare("INSERT INTO saved_quizzes (user_id, title, filename, questions, chapters, pdf_text) VALUES (?, ?, ?, ?, ?, ?)");
-$stmt->bind_param("ssssss", 
-    $data['userId'],
-    $data['title'],
-    $data['filename'],
-    json_encode($data['questions']),
-    json_encode($data['chapters']),
-    $data['pdfText']
+$conn = new mysqli(
+    "sql100.infinityfree.com",
+    "if0_40590891",
+    "JnxF6pWuQV",
+    "if0_40590891_QUIZLETEMRIP"
 );
 
-if($stmt->execute()){
-    echo json_encode(["success" => true, "id" => $stmt->insert_id]);
-} else {
-    echo json_encode(["success" => false, "error" => $stmt->error]);
+if ($conn->connect_error) {
+    echo json_encode(["status" => "error", "message" => $conn->connect_error]);
+    exit;
 }
 
-$stmt->close();
+$data = json_decode(file_get_contents("php://input"), true);
+
+$title = $conn->real_escape_string($data["title"]);
+$category = $conn->real_escape_string($data["category"]);
+$filename = $conn->real_escape_string($data["filename"]);
+$questions = $conn->real_escape_string(json_encode($data["questions"]));
+$chapters = $conn->real_escape_string(json_encode($data["chapters"]));
+$pdftext = $conn->real_escape_string(substr($data["pdf_text"], 0, 10000));
+$qcount = intval($data["question_count"]);
+
+$sql = "INSERT INTO quizzes (title, category, filename, questions, chapters, pdf_text, question_count)
+        VALUES ('$title', '$category', '$filename', '$questions', '$chapters', '$pdftext', $qcount)";
+
+if ($conn->query($sql) === TRUE) {
+    echo json_encode(["status" => "success", "id" => $conn->insert_id]);
+} else {
+    echo json_encode(["status" => "error", "message" => $conn->error]);
+}
+
 $conn->close();
 ?>
