@@ -3,13 +3,11 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>PDF Quiz Master | Auto-Generate & Save</title>
+<title>PDF Quiz Maker - Local Storage</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<!-- MySQL.js library for direct browser MySQL connection -->
-<script src="https://cdn.jsdelivr.net/npm/mysql-browser@1.0.0/dist/mysql-browser.min.js"></script>
 
 <style>
     :root{
@@ -217,7 +215,7 @@
         background:#c6f6d5;
     }
     
-    /* Progress & Status */
+    /* Progress Bar */
     .progress-container{
         width:100%;
         background:#e2e8f0;
@@ -233,8 +231,8 @@
         transition:width 0.3s;
     }
     
-    /* Notifications */
-    .notification{
+    /* Toast Notifications */
+    .toast{
         position:fixed;
         top:20px;
         right:20px;
@@ -252,11 +250,11 @@
         from{transform:translateX(100%);opacity:0;}
         to{transform:translateX(0);opacity:1;}
     }
-    .notification.success{border-left-color:var(--success-color);}
-    .notification.error{border-left-color:var(--danger-color);}
-    .notification.warning{border-left-color:var(--warning-color);}
+    .toast.success{border-left-color:var(--success-color);}
+    .toast.error{border-left-color:var(--danger-color);}
+    .toast.warning{border-left-color:var(--warning-color);}
     
-    /* Loading states */
+    /* Loading */
     .loader{
         display:none;
         text-align:center;
@@ -339,7 +337,7 @@
     .result-item.correct{border-left:4px solid #34c6eb}
     .result-item.incorrect{border-left:4px solid #ff5ca8}
 
-    /* Timer Setup */
+    /* Timer */
     .timerbar{display:flex;gap:10px;flex-wrap:wrap}
     .timeropt{border:2px solid #edf0f7;padding:10px;border-radius:12px;background:#fff;cursor:pointer}
     .timeropt.active{border-color:var(--primary-color)}
@@ -351,32 +349,17 @@
         to{transform:translateY(110vh) rotate(720deg);opacity:0}
     }
 
-    /* Database Connection */
-    .db-panel{
+    /* Storage Info */
+    .storage-info{
         background:#f8f9fa;
         border-radius:10px;
         padding:15px;
         margin-top:15px;
         border-left:4px solid var(--success-color);
     }
-    .db-status{
-        display:flex;
-        align-items:center;
-        gap:10px;
-        margin-bottom:10px;
-    }
-    .status-dot{
-        width:12px;
-        height:12px;
-        border-radius:50%;
-        background:#ccc;
-    }
-    .status-dot.connected{background:#38a169;}
-    .status-dot.disconnected{background:#e53e3e;}
-    .db-actions{
-        display:flex;
-        gap:10px;
-        margin-top:10px;
+    .storage-info h4{
+        margin-top:0;
+        color:var(--secondary-color);
     }
 
     /* Responsive */
@@ -386,7 +369,7 @@
         .question-grid{grid-template-columns:repeat(6,1fr)}
         .shop-items{grid-template-columns:1fr}
         .quiz-list{grid-template-columns:1fr;}
-        .notification{
+        .toast{
             left:20px;
             right:20px;
             max-width:none;
@@ -400,36 +383,33 @@
     <div class="brand">
         <div class="logo">PQ</div>
         <div>
-            <div class="title">PDF QUIZ MASTER</div>
-            <small style="color:#6b7280">InfinityFree Database Connected</small>
+            <div class="title">PDF QUIZ MAKER</div>
+            <small style="color:#6b7280">Upload → Auto-Generate → Save Locally</small>
         </div>
     </div>
     <div class="tabs">
         <button class="tab active" id="tabUpload"><i class="fa-solid fa-upload"></i> Upload PDF</button>
-        <button class="tab" id="tabSaved"><i class="fa-solid fa-database"></i> My Quizzes</button>
+        <button class="tab" id="tabSaved"><i class="fa-solid fa-bookmark"></i> My Quizzes</button>
         <button class="tab" id="tabStudy"><i class="fa-solid fa-book-open"></i> Study</button>
         <button class="tab" id="tabQuiz"><i class="fa-solid fa-gamepad"></i> Quiz</button>
         <button class="tab" id="tabResults"><i class="fa-solid fa-chart-line"></i> Results</button>
     </div>
     <div class="right-actions">
-        <div class="pill" id="dbStatusPill">
-            <span class="dot" id="dbStatusDot"></span> 
-            <span id="dbStatusText">Connecting...</span>
-        </div>
+        <div class="pill"><span class="dot"></span> <span id="statusText">Ready</span></div>
         <div class="pill"><i class="fa-solid fa-coins coins"></i> <span id="coinsTop">100</span></div>
         <div class="pill"><i class="fa-solid fa-star score"></i> <span id="scoreTop">0</span></div>
-        <button class="tab" id="openShop"><i class="fa-solid fa-store"></i> Store</button>
+        <button class="tab" id="openShop"><i class="fa-solid fa-store"></i> Shop</button>
     </div>
 </header>
 
-<!-- Notification System -->
-<div class="notification" id="notification">
+<!-- Toast Notification -->
+<div class="toast" id="toast">
     <div style="display:flex;justify-content:space-between;align-items:start;">
         <div>
-            <strong id="notificationTitle"></strong>
-            <p id="notificationMessage" style="margin:5px 0 0;color:var(--light-text);"></p>
+            <strong id="toastTitle"></strong>
+            <p id="toastMessage" style="margin:5px 0 0;color:var(--light-text);"></p>
         </div>
-        <button style="background:none;border:none;cursor:pointer;color:#999;" onclick="hideNotification()">
+        <button style="background:none;border:none;cursor:pointer;color:#999;" onclick="hideToast()">
             <i class="fa-solid fa-xmark"></i>
         </button>
     </div>
@@ -444,30 +424,20 @@
         <div class="shop-section">
             <button class="nav-btn" id="sidebarShop"><i class="fa-solid fa-cart-shopping"></i> Shop Power-ups</button>
             <button class="nav-btn" style="margin-top:10px;background:var(--success-color);" id="saveQuizBtn">
-                <i class="fa-solid fa-save"></i> Save Quiz to Database
+                <i class="fa-solid fa-save"></i> Save This Quiz
             </button>
-            <button class="nav-btn" style="margin-top:10px;background:var(--warning-color);" id="syncQuizzesBtn">
-                <i class="fa-solid fa-sync"></i> Sync with Database
+            <button class="nav-btn" style="margin-top:10px;background:var(--warning-color);" id="exportAllBtn">
+                <i class="fa-solid fa-download"></i> Export All Data
             </button>
         </div>
         
-        <!-- Database Panel -->
-        <div class="db-panel">
-            <div class="db-status">
-                <span class="status-dot" id="dbDot"></span>
-                <span id="dbStatus">Connecting to InfinityFree...</span>
-            </div>
-            <div style="font-size:0.9em;color:var(--light-text);">
-                <i class="fa-solid fa-server"></i> sql100.infinityfree.com
-            </div>
-            <div class="db-actions">
-                <button class="btn btn-ghost" style="padding:8px 12px;font-size:0.9em;" id="testConnectionBtn">
-                    <i class="fa-solid fa-plug"></i> Test Connection
-                </button>
-                <button class="btn btn-ghost" style="padding:8px 12px;font-size:0.9em;" id="createTableBtn">
-                    <i class="fa-solid fa-table"></i> Create Table
-                </button>
-            </div>
+        <!-- Storage Info -->
+        <div class="storage-info">
+            <h4><i class="fa-solid fa-hard-drive"></i> Local Storage</h4>
+            <p>All quizzes are saved in your browser. They'll stay here unless you clear browser data.</p>
+            <button class="btn btn-ghost" style="width:100%;margin-top:10px;" id="clearStorageBtn">
+                <i class="fa-solid fa-trash"></i> Clear All Quizzes
+            </button>
         </div>
     </aside>
 
@@ -491,12 +461,12 @@
 
         <!-- Upload Mode -->
         <div class="card" id="uploadMode">
-            <h2><i class="fa-solid fa-file-import"></i> Auto PDF Processing</h2>
+            <h2><i class="fa-solid fa-file-pdf"></i> Auto PDF Processing</h2>
             <p>Upload any PDF. We'll automatically extract ALL text and generate comprehensive quiz questions covering everything important.</p>
             
             <div class="upload-area" id="dropArea">
                 <div class="upload-icon">
-                    <i class="fa-solid fa-file-pdf"></i>
+                    <i class="fa-solid fa-file-import"></i>
                 </div>
                 <h3>Drop PDF File Here</h3>
                 <p>We'll automatically process and create quiz questions</p>
@@ -518,23 +488,27 @@
         <!-- Saved Quizzes -->
         <div class="card saved-quizzes" id="savedQuizzes">
             <div style="display:flex;justify-content:space-between;align-items:center;">
-                <h2><i class="fa-solid fa-database"></i> My Saved Quizzes</h2>
+                <h2><i class="fa-solid fa-bookmark"></i> My Saved Quizzes</h2>
                 <div style="display:flex;gap:10px;">
-                    <button class="btn btn-secondary" id="refreshDbBtn">
+                    <button class="btn btn-secondary" id="refreshBtn">
                         <i class="fa-solid fa-sync"></i> Refresh
                     </button>
-                    <button class="btn btn-primary" id="newQuizBtn">
+                    <button class="btn btn-primary" onclick="setActiveTab('upload')">
                         <i class="fa-solid fa-plus"></i> New Quiz
                     </button>
                 </div>
             </div>
-            <p>Quizzes saved in your InfinityFree database. Click to load and continue studying.</p>
+            <p>Quizzes saved in your browser's local storage. Click to load and continue studying.</p>
             
             <div class="quiz-list" id="quizList">
-                <!-- Quizzes from database will appear here -->
+                <!-- Quizzes will appear here -->
                 <div style="text-align:center;padding:40px;color:var(--light-text);">
-                    <i class="fa-solid fa-database" style="font-size:48px;margin-bottom:15px;opacity:0.5;"></i>
-                    <p>Loading quizzes from database...</p>
+                    <i class="fa-solid fa-inbox" style="font-size:48px;margin-bottom:15px;opacity:0.5;"></i>
+                    <h3 style="margin:10px 0;color:var(--dark-text);">No Quizzes Yet</h3>
+                    <p>Upload a PDF to create your first quiz!</p>
+                    <button class="btn btn-primary" style="margin-top:15px;" onclick="setActiveTab('upload')">
+                        <i class="fa-solid fa-upload"></i> Upload PDF
+                    </button>
                 </div>
             </div>
         </div>
@@ -637,7 +611,7 @@
 <div class="modal" id="saveModal">
     <div class="modal-card">
         <div style="display:flex;justify-content:space-between;align-items:center;">
-            <h2 style="margin:0;">Save Quiz to Database</h2>
+            <h2 style="margin:0;">Save Quiz</h2>
             <button class="btn btn-ghost" id="closeSave"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div style="margin:20px 0;">
@@ -666,31 +640,15 @@
             </div>
             
             <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:25px;">
-                <button class="btn btn-primary" id="saveToDbBtn" style="flex:1;">
-                    <i class="fa-solid fa-database"></i> Save to InfinityFree
-                </button>
-                <button class="btn btn-secondary" id="saveLocalBackupBtn">
-                    <i class="fa-solid fa-hdd"></i> Local Backup
+                <button class="btn btn-primary" id="saveToLocalBtn" style="flex:1;">
+                    <i class="fa-solid fa-save"></i> Save to Browser
                 </button>
             </div>
             
             <div class="note" style="margin-top:15px;">
                 <strong><i class="fa-solid fa-info-circle"></i> Note:</strong> 
-                Your quiz will be saved to your InfinityFree MySQL database. You can access it from any device.
+                Your quiz will be saved in your browser's local storage. You can access it later from this browser.
             </div>
-        </div>
-    </div>
-</div>
-
-<!-- Edit Quiz Modal -->
-<div class="modal" id="editModal">
-    <div class="modal-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-            <h2 style="margin:0;">Edit Quiz</h2>
-            <button class="btn btn-ghost" id="closeEdit"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <div id="editContainer" style="margin-top:20px;">
-            <!-- Edit form will be loaded here -->
         </div>
     </div>
 </div>
@@ -707,24 +665,9 @@
 
 <script>
 /* ===========================
-   CONFIGURATION - YOUR INFINITYFREE CREDENTIALS
-   =========================== */
-const DB_CONFIG = {
-    host: 'sql100.infinityfree.com',
-    port: 3306,
-    user: 'if0_40590891',
-    password: 'JnxF6pWuQV',
-    database: 'if0_40590891_QUIZLETEMRIP'
-};
-
-/* ===========================
-   STATE
+   SIMPLIFIED STATE
    =========================== */
 const Game = {
-  // Database connection
-  db: null,
-  dbConnected: false,
-  
   // PDF State
   pdfDoc: null,
   pdfText: "",
@@ -746,9 +689,8 @@ const Game = {
   timers: {mode:'none', quiz:300, question:30, handle:null, remaining:null},
   powerups: { '5050':3, hint:3, skip:2 },
   
-  // Current quiz
-  currentQuizId: null,
-  quizList: []
+  // Saved quizzes
+  savedQuizzes: []
 };
 
 /* ===========================
@@ -762,35 +704,28 @@ function create(el,cls,text){
     return e;
 }
 
-// Notification System
-function showNotification(title, message, type = 'success', duration = 5000){
-    const notification = $('#notification');
-    $('#notificationTitle').textContent = title;
-    $('#notificationMessage').textContent = message;
+// Toast Notification System
+function showToast(title, message, type = 'success', duration = 4000){
+    const toast = $('#toast');
+    $('#toastTitle').textContent = title;
+    $('#toastMessage').textContent = message;
     
-    notification.className = 'notification ' + type;
-    notification.style.display = 'block';
+    toast.className = 'toast ' + type;
+    toast.style.display = 'block';
+    toast.style.opacity = '1';
     
     setTimeout(() => {
-        if(notification.style.display === 'block'){
-            notification.style.opacity = '0';
-            setTimeout(() => notification.style.display = 'none', 300);
+        if(toast.style.display === 'block'){
+            toast.style.opacity = '0';
+            setTimeout(() => toast.style.display = 'none', 300);
         }
     }, duration);
 }
 
-function hideNotification(){
-    const notification = $('#notification');
-    notification.style.opacity = '0';
-    setTimeout(() => notification.style.display = 'none', 300);
-}
-
-function setStatus(text, type = 'info'){
-    $('#statusText').textContent = text;
-    const dot = $('#dbStatusDot');
-    if(type === 'success') dot.style.background = '#38a169';
-    else if(type === 'error') dot.style.background = '#e53e3e';
-    else dot.style.background = '#f6ad55';
+function hideToast(){
+    const toast = $('#toast');
+    toast.style.opacity = '0';
+    setTimeout(() => toast.style.display = 'none', 300);
 }
 
 function updateProgress(percent, text){
@@ -832,277 +767,26 @@ function confettiBurst(){
 }
 
 /* ===========================
-   DATABASE CONNECTION - DIRECT MYSQL FROM BROWSER
+   LOCAL STORAGE FUNCTIONS
    =========================== */
-async function connectToDatabase(){
-    try {
-        showNotification('Database', 'Connecting to InfinityFree...', 'warning');
-        setStatus('Connecting...', 'warning');
-        
-        // Update UI
-        $('#dbDot').className = 'status-dot';
-        $('#dbStatus').textContent = 'Connecting...';
-        
-        // Using mysql-browser library for direct connection
-        Game.db = mysql.createConnection(DB_CONFIG);
-        
-        // Test connection
-        await new Promise((resolve, reject) => {
-            Game.db.connect(err => {
-                if(err) reject(err);
-                else resolve();
-            });
-        });
-        
-        Game.dbConnected = true;
-        
-        // Update UI
-        $('#dbDot').className = 'status-dot connected';
-        $('#dbStatus').textContent = 'Connected to InfinityFree';
-        $('#dbStatusText').textContent = 'Connected';
-        $('#dbStatusPill .dot').style.background = '#38a169';
-        
-        showNotification('Database', 'Successfully connected to InfinityFree MySQL', 'success');
-        setStatus('Connected', 'success');
-        
-        // Create table if it doesn't exist
-        await createQuizTable();
-        
-        // Load quizzes
-        await loadQuizzesFromDB();
-        
-        return true;
-        
-    } catch(error){
-        console.error('Database connection error:', error);
-        Game.dbConnected = false;
-        
-        $('#dbDot').className = 'status-dot disconnected';
-        $('#dbStatus').textContent = 'Connection failed: ' + error.message;
-        $('#dbStatusText').textContent = 'Disconnected';
-        $('#dbStatusPill .dot').style.background = '#e53e3e';
-        
-        showNotification('Database Error', 'Could not connect to InfinityFree. Using local storage instead.', 'error', 8000);
-        setStatus('Disconnected', 'error');
-        
-        // Fallback to localStorage
-        loadQuizzesFromLocalStorage();
-        
-        return false;
-    }
-}
-
-async function createQuizTable(){
-    if(!Game.dbConnected) return false;
-    
-    try {
-        const createTableSQL = `
-            CREATE TABLE IF NOT EXISTS quizzes (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                title VARCHAR(255) NOT NULL,
-                category VARCHAR(100) DEFAULT 'General',
-                filename VARCHAR(255),
-                questions TEXT NOT NULL,
-                chapters TEXT,
-                pdf_text LONGTEXT,
-                question_count INT DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                user_id VARCHAR(50) DEFAULT 'default_user'
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-        `;
-        
-        await new Promise((resolve, reject) => {
-            Game.db.query(createTableSQL, (err, results) => {
-                if(err) reject(err);
-                else resolve(results);
-            });
-        });
-        
-        showNotification('Database', 'Quiz table created successfully', 'success');
-        return true;
-        
-    } catch(error){
-        console.error('Create table error:', error);
-        showNotification('Database Warning', 'Could not create table: ' + error.message, 'warning');
-        return false;
-    }
-}
-
-async function saveQuizToDB(title, category = 'General'){
-    if(!Game.dbConnected){
-        showNotification('Error', 'Database not connected. Saving locally instead.', 'error');
-        saveQuizLocally(title);
-        return false;
-    }
-    
-    if(!title || title.trim() === ''){
-        showNotification('Error', 'Please enter a quiz title', 'error');
-        return false;
-    }
-    
-    try {
-        showLoader(true, 'Saving to InfinityFree database...');
-        
-        const quizData = {
-            title: title.trim(),
-            category: category,
-            filename: Game.pdfFileName || 'Unknown PDF',
-            questions: JSON.stringify(Game.questions),
-            chapters: JSON.stringify(Game.chapters),
-            pdf_text: Game.pdfText.substring(0, 10000), // Limit text
-            question_count: Game.questions.length,
-            user_id: 'user_' + Math.random().toString(36).substr(2, 9)
-        };
-        
-        const sql = `
-            INSERT INTO quizzes (title, category, filename, questions, chapters, pdf_text, question_count, user_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-        
-        const result = await new Promise((resolve, reject) => {
-            Game.db.query(sql, [
-                quizData.title,
-                quizData.category,
-                quizData.filename,
-                quizData.questions,
-                quizData.chapters,
-                quizData.pdf_text,
-                quizData.question_count,
-                quizData.user_id
-            ], (err, result) => {
-                if(err) reject(err);
-                else resolve(result);
-            });
-        });
-        
-        showLoader(false);
-        showNotification('Success', `Quiz "${title}" saved to InfinityFree database!`, 'success');
-        
-        // Also save locally as backup
-        saveQuizLocally(title);
-        
-        // Refresh quiz list
-        await loadQuizzesFromDB();
-        
-        return result.insertId;
-        
-    } catch(error){
-        console.error('Save quiz error:', error);
-        showLoader(false);
-        showNotification('Error', 'Failed to save quiz: ' + error.message, 'error');
-        
-        // Fallback to local storage
-        saveQuizLocally(title);
-        return false;
-    }
-}
-
-async function loadQuizzesFromDB(){
-    if(!Game.dbConnected){
-        loadQuizzesFromLocalStorage();
-        return;
-    }
-    
-    try {
-        const sql = `SELECT * FROM quizzes ORDER BY created_at DESC LIMIT 50`;
-        
-        const results = await new Promise((resolve, reject) => {
-            Game.db.query(sql, (err, results) => {
-                if(err) reject(err);
-                else resolve(results);
-            });
-        });
-        
-        Game.quizList = results;
-        displayQuizzes(Game.quizList);
-        
-    } catch(error){
-        console.error('Load quizzes error:', error);
-        showNotification('Warning', 'Could not load from database. Using local storage.', 'warning');
-        loadQuizzesFromLocalStorage();
-    }
-}
-
-async function deleteQuizFromDB(quizId){
-    if(!Game.dbConnected){
-        showNotification('Error', 'Database not connected', 'error');
-        return false;
-    }
-    
-    try {
-        const sql = `DELETE FROM quizzes WHERE id = ?`;
-        
-        await new Promise((resolve, reject) => {
-            Game.db.query(sql, [quizId], (err, result) => {
-                if(err) reject(err);
-                else resolve(result);
-            });
-        });
-        
-        showNotification('Success', 'Quiz deleted from database', 'success');
-        await loadQuizzesFromDB();
-        return true;
-        
-    } catch(error){
-        console.error('Delete quiz error:', error);
-        showNotification('Error', 'Failed to delete quiz: ' + error.message, 'error');
-        return false;
-    }
-}
-
-/* ===========================
-   LOCAL STORAGE FALLBACK
-   =========================== */
-function saveQuizLocally(title){
-    const quizData = {
-        id: 'local_' + Date.now(),
-        title: title || Game.pdfFileName || 'Untitled Quiz',
-        filename: Game.pdfFileName,
-        timestamp: Date.now(),
-        questions: Game.questions,
-        chapters: Game.chapters,
-        question_count: Game.questions.length
-    };
-    
-    // Save to localStorage
-    const saved = JSON.parse(localStorage.getItem('localQuizzes') || '[]');
-    saved.unshift(quizData);
-    
-    // Keep only last 20
-    if(saved.length > 20){
-        saved.length = 20;
-    }
-    
-    localStorage.setItem('localQuizzes', JSON.stringify(saved));
-    
-    // Show notification
-    showNotification('Local Backup', `Quiz "${title}" saved locally`, 'success');
-    
-    return quizData.id;
-}
-
-function loadQuizzesFromLocalStorage(){
-    const saved = localStorage.getItem('localQuizzes');
+function loadSavedQuizzes(){
+    const saved = localStorage.getItem('pdfQuizMaker_savedQuizzes');
     if(saved){
         try {
-            Game.quizList = JSON.parse(saved);
-            displayQuizzes(Game.quizList);
+            Game.savedQuizzes = JSON.parse(saved);
+            displayQuizzes();
         } catch(e){
-            console.error('Error loading local quizzes:', e);
-            Game.quizList = [];
+            console.error('Error loading saved quizzes:', e);
+            Game.savedQuizzes = [];
         }
     }
 }
 
-/* ===========================
-   QUIZ DISPLAY FUNCTIONS
-   =========================== */
-function displayQuizzes(quizzes){
+function displayQuizzes(){
     const container = $('#quizList');
     container.innerHTML = '';
     
-    if(!quizzes || quizzes.length === 0){
+    if(Game.savedQuizzes.length === 0){
         container.innerHTML = `
             <div style="text-align:center;padding:40px;color:var(--light-text);">
                 <i class="fa-solid fa-inbox" style="font-size:48px;margin-bottom:15px;opacity:0.5;"></i>
@@ -1116,19 +800,13 @@ function displayQuizzes(quizzes){
         return;
     }
     
-    quizzes.forEach((quiz, index) => {
-        const isLocal = quiz.id && quiz.id.startsWith('local_');
-        const date = new Date(quiz.created_at || quiz.timestamp || Date.now());
+    Game.savedQuizzes.forEach((quiz, index) => {
+        const date = new Date(quiz.timestamp || Date.now());
         const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         
         const card = create('div', 'quiz-card');
         card.innerHTML = `
-            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
-                <h4 style="margin:0;flex:1;">${quiz.title || 'Untitled Quiz'}</h4>
-                <span style="background:${isLocal ? '#f6ad55' : '#38a169'};color:white;padding:2px 8px;border-radius:10px;font-size:0.8em;">
-                    ${isLocal ? 'Local' : 'Cloud'}
-                </span>
-            </div>
+            <h4 style="margin:0 0 10px 0;">${quiz.title || 'Untitled Quiz'}</h4>
             <div class="quiz-meta">
                 <span><i class="fa-solid fa-file-pdf"></i> ${quiz.filename || 'Unknown'}</span>
                 <span><i class="fa-solid fa-calendar"></i> ${dateStr}</span>
@@ -1138,10 +816,10 @@ function displayQuizzes(quizzes){
                 ${quiz.category ? `<span style="margin-left:10px;"><i class="fa-solid fa-tag"></i> ${quiz.category}</span>` : ''}
             </div>
             <div class="quiz-actions">
-                <button class="load-btn" data-id="${quiz.id}" data-index="${index}">
+                <button class="load-btn" data-index="${index}">
                     <i class="fa-solid fa-play"></i> Load
                 </button>
-                <button class="delete-btn" data-id="${quiz.id}" data-index="${index}">
+                <button class="delete-btn" data-index="${index}">
                     <i class="fa-solid fa-trash"></i> Delete
                 </button>
             </div>
@@ -1153,67 +831,67 @@ function displayQuizzes(quizzes){
     // Add event listeners
     container.querySelectorAll('.load-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const id = e.target.closest('button').dataset.id;
             const index = parseInt(e.target.closest('button').dataset.index);
             loadQuiz(index);
         });
     });
     
     container.querySelectorAll('.delete-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-            const id = e.target.closest('button').dataset.id;
+        btn.addEventListener('click', (e) => {
             const index = parseInt(e.target.closest('button').dataset.index);
-            
-            // Show confirmation in notification
-            showNotification('Confirm Delete', 'Click the trash icon again to confirm deletion', 'warning', 5000);
-            
-            // Change button to confirm
-            const button = e.target.closest('button');
-            const originalHTML = button.innerHTML;
-            button.innerHTML = '<i class="fa-solid fa-check"></i> Confirm';
-            button.style.background = '#e53e3e';
-            button.style.color = 'white';
-            
-            // Reset after 5 seconds
-            setTimeout(() => {
-                button.innerHTML = originalHTML;
-                button.style.background = '';
-                button.style.color = '';
-            }, 5000);
-            
-            // Store the click handler
-            const confirmDelete = async () => {
-                if(id.startsWith('local_')){
-                    // Delete from local storage
-                    Game.quizList.splice(index, 1);
-                    localStorage.setItem('localQuizzes', JSON.stringify(Game.quizList));
-                    showNotification('Deleted', 'Quiz removed from local storage', 'success');
-                } else {
-                    // Delete from database
-                    await deleteQuizFromDB(id);
-                }
-                displayQuizzes(Game.quizList);
-                button.removeEventListener('click', confirmDelete);
-            };
-            
-            // Replace click handler
-            button.replaceWith(button.cloneNode(true));
-            const newButton = container.querySelector(`[data-id="${id}"]`);
-            newButton.addEventListener('click', confirmDelete);
+            deleteQuiz(index);
         });
     });
 }
 
+function saveQuizLocally(title, category = 'General'){
+    if(!title || title.trim() === ''){
+        showToast('Error', 'Please enter a quiz title', 'error');
+        return false;
+    }
+    
+    const quizData = {
+        id: 'quiz_' + Date.now(),
+        title: title.trim(),
+        category: category,
+        filename: Game.pdfFileName || 'Unknown PDF',
+        timestamp: Date.now(),
+        questions: Game.questions,
+        chapters: Game.chapters,
+        pdf_text: Game.pdfText.substring(0, 5000),
+        question_count: Game.questions.length
+    };
+    
+    // Add to saved quizzes
+    Game.savedQuizzes.unshift(quizData);
+    
+    // Keep only last 50 quizzes
+    if(Game.savedQuizzes.length > 50){
+        Game.savedQuizzes = Game.savedQuizzes.slice(0, 50);
+    }
+    
+    // Save to localStorage
+    localStorage.setItem('pdfQuizMaker_savedQuizzes', JSON.stringify(Game.savedQuizzes));
+    
+    // Update display
+    displayQuizzes();
+    
+    // Show confirmation
+    showToast('Success', `Quiz "${quizData.title}" saved locally!`, 'success');
+    $('#saveModal').classList.remove('show');
+    
+    return quizData.id;
+}
+
 function loadQuiz(index){
-    const quiz = Game.quizList[index];
+    const quiz = Game.savedQuizzes[index];
     if(!quiz) return;
     
     try {
-        // Parse quiz data
-        Game.questions = typeof quiz.questions === 'string' ? JSON.parse(quiz.questions) : quiz.questions;
-        Game.chapters = typeof quiz.chapters === 'string' ? JSON.parse(quiz.chapters) : quiz.chapters;
+        // Load quiz data
+        Game.questions = quiz.questions || [];
+        Game.chapters = quiz.chapters || [];
         Game.pdfFileName = quiz.filename || '';
-        Game.currentQuizId = quiz.id;
         
         // Start quiz
         startQuizWithQuestions();
@@ -1222,28 +900,127 @@ function loadQuiz(index){
         // Switch to quiz tab
         setActiveTab('quiz');
         
-        showNotification('Quiz Loaded', `${quiz.title} loaded with ${Game.questions.length} questions`, 'success');
-        setStatus(`Loaded: ${quiz.title}`);
+        // Show notification
+        showToast('Loaded', `${quiz.title} loaded with ${quiz.questions.length} questions`, 'success');
         
     } catch(error){
         console.error('Error loading quiz:', error);
-        showNotification('Error', 'Failed to load quiz data', 'error');
+        showToast('Error', 'Failed to load quiz data', 'error');
     }
 }
 
+function deleteQuiz(index){
+    // Show confirmation in toast
+    showToast('Confirm Delete', 'Click delete again within 5 seconds to confirm', 'warning', 5000);
+    
+    // Change button to confirm
+    const button = document.querySelector(`.delete-btn[data-index="${index}"]`);
+    const originalHTML = button.innerHTML;
+    button.innerHTML = '<i class="fa-solid fa-check"></i> Confirm';
+    button.style.background = '#e53e3e';
+    button.style.color = 'white';
+    
+    // Store the confirmation function
+    const confirmDelete = () => {
+        Game.savedQuizzes.splice(index, 1);
+        localStorage.setItem('pdfQuizMaker_savedQuizzes', JSON.stringify(Game.savedQuizzes));
+        displayQuizzes();
+        showToast('Deleted', 'Quiz removed', 'success');
+    };
+    
+    // Replace the button with a new one that has the confirm function
+    const newButton = button.cloneNode(true);
+    button.parentNode.replaceChild(newButton, button);
+    
+    // Add confirm function to new button
+    newButton.addEventListener('click', confirmDelete);
+    
+    // Reset after 5 seconds
+    setTimeout(() => {
+        if(newButton.parentNode){
+            newButton.innerHTML = originalHTML;
+            newButton.style.background = '';
+            newButton.style.color = '';
+            newButton.removeEventListener('click', confirmDelete);
+        }
+    }, 5000);
+}
+
+function clearAllQuizzes(){
+    // Show confirmation
+    showToast('Confirm Delete All', 'Click Clear All again to confirm deletion of ALL quizzes', 'error', 5000);
+    
+    // Change button text
+    const button = $('#clearStorageBtn');
+    const originalHTML = button.innerHTML;
+    button.innerHTML = '<i class="fa-solid fa-exclamation-triangle"></i> CONFIRM DELETE ALL';
+    button.style.background = '#e53e3e';
+    button.style.color = 'white';
+    
+    // Store the confirmation function
+    const confirmClearAll = () => {
+        Game.savedQuizzes = [];
+        localStorage.removeItem('pdfQuizMaker_savedQuizzes');
+        displayQuizzes();
+        showToast('Cleared', 'All quizzes deleted', 'success');
+        
+        // Reset button
+        button.innerHTML = originalHTML;
+        button.style.background = '';
+        button.style.color = '';
+        button.removeEventListener('click', confirmClearAll);
+    };
+    
+    // Replace event listener
+    button.replaceWith(button.cloneNode(true));
+    const newButton = $('#clearStorageBtn');
+    newButton.addEventListener('click', confirmClearAll);
+    
+    // Reset after 5 seconds
+    setTimeout(() => {
+        if(newButton && newButton.parentNode){
+            newButton.innerHTML = originalHTML;
+            newButton.style.background = '';
+            newButton.style.color = '';
+            newButton.removeEventListener('click', confirmClearAll);
+        }
+    }, 5000);
+}
+
+function exportAllData(){
+    const exportData = {
+        version: '1.0',
+        exportDate: new Date().toISOString(),
+        quizzes: Game.savedQuizzes,
+        stats: {
+            totalQuizzes: Game.savedQuizzes.length,
+            totalQuestions: Game.savedQuizzes.reduce((sum, q) => sum + (q.questions?.length || 0), 0)
+        }
+    };
+    
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    const exportFileDefaultName = `pdf-quizzes-backup-${new Date().toISOString().split('T')[0]}.json`;
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+    
+    showToast('Exported', `${Game.savedQuizzes.length} quizzes exported to JSON file`, 'success');
+}
+
 /* ===========================
-   PDF PROCESSING - AUTO EXTRACT & GENERATE
+   PDF PROCESSING - SIMPLIFIED
    =========================== */
 async function loadPDF(file){
     if(!file || file.type !== 'application/pdf'){
-        showNotification('Error', 'Please select a PDF file', 'error');
+        showToast('Error', 'Please select a PDF file', 'error');
         return;
     }
     
     Game.pdfFileName = file.name;
-    setStatus('Processing PDF...', 'warning');
     showLoader(true, 'Processing PDF...');
-    $('#loaderText').textContent = 'Initializing PDF processor...';
     
     // Update file info
     $('#fileName').textContent = file.name;
@@ -1259,43 +1036,37 @@ async function loadPDF(file){
         Game.pdfDoc = await loadingTask.promise;
         
         updateProgress(20, 'Extracting text from PDF...');
-        $('#loaderText').textContent = 'Extracting text...';
         
         // Extract ALL text automatically
         const extractedText = await extractAllText();
         Game.pdfText = extractedText;
         
         updateProgress(50, 'Analyzing content...');
-        $('#loaderText').textContent = 'Analyzing content...';
         
         // Automatically generate comprehensive questions
         await autoGenerateQuestions(extractedText);
         
         updateProgress(80, 'Creating study material...');
-        $('#loaderText').textContent = 'Creating study material...';
         
         // Create study chapters
         createStudyChaptersFromText(extractedText);
         
         updateProgress(100, 'Quiz ready!');
-        $('#loaderText').textContent = 'Finalizing...';
         
         // Auto-start the quiz after a short delay
         setTimeout(() => {
             startQuizWithQuestions();
             setActiveTab('quiz');
-            setStatus(`Ready - ${Game.questions.length} questions`, 'success');
             showLoader(false);
             $('#progressContainer').style.display = 'none';
             
-            showNotification('Success', `Created ${Game.questions.length} questions from "${file.name}"`, 'success', 4000);
+            showToast('Success', `Created ${Game.questions.length} questions from your PDF!`, 'success', 4000);
             
-        }, 800);
+        }, 500);
         
     } catch(error){
         console.error('Error processing PDF:', error);
-        showNotification('Error', 'Failed to process PDF. Please try a different file.', 'error');
-        setStatus('PDF processing failed', 'error');
+        showToast('Error', 'Failed to process PDF. Please try a different file.', 'error');
         showLoader(false);
         $('#progressContainer').style.display = 'none';
     }
@@ -1303,7 +1074,7 @@ async function loadPDF(file){
 
 async function extractAllText(){
     let allText = '';
-    const totalPages = Math.min(Game.pdfDoc.numPages, 50);
+    const totalPages = Math.min(Game.pdfDoc.numPages, 30); // Limit to 30 pages for speed
     
     for(let i=1; i<=totalPages; i++){
         try {
@@ -1324,8 +1095,6 @@ async function extractAllText(){
 }
 
 async function autoGenerateQuestions(text){
-    setStatus('Generating questions...', 'warning');
-    
     // Split text into sentences and important phrases
     const sentences = splitIntoSentences(text);
     const importantTerms = extractImportantTerms(text);
@@ -1335,7 +1104,7 @@ async function autoGenerateQuestions(text){
     
     // 1. Definition questions for important terms
     importantTerms.forEach((term, index) => {
-        if(index < 25){
+        if(index < 20){
             Game.questions.push(createDefinitionQuestion(term, text, index));
         }
     });
@@ -1344,7 +1113,7 @@ async function autoGenerateQuestions(text){
     
     // 2. Comprehension questions from sentences
     sentences.forEach((sentence, index) => {
-        if(index < 20 && sentence.length > 30 && sentence.length < 200){
+        if(index < 15 && sentence.length > 30 && sentence.length < 200){
             Game.questions.push(createComprehensionQuestion(sentence, text, index));
         }
     });
@@ -1354,7 +1123,7 @@ async function autoGenerateQuestions(text){
     // 3. Application questions
     const keyConcepts = extractKeyConcepts(text);
     keyConcepts.forEach((concept, index) => {
-        if(index < 15){
+        if(index < 10){
             Game.questions.push(createApplicationQuestion(concept, text, index));
         }
     });
@@ -1370,11 +1139,9 @@ async function autoGenerateQuestions(text){
             Game.questions.push(createFallbackQuestion(para, index));
         });
     }
-    
-    setStatus(`Generated ${Game.questions.length} questions`, 'success');
 }
 
-// Text processing functions (same as before but optimized)
+// Helper functions for text processing
 function splitIntoSentences(text){
     return text
         .replace(/\n/g, ' ')
@@ -1394,7 +1161,7 @@ function extractImportantTerms(text){
     
     return Object.entries(wordFreq)
         .sort((a, b) => b[1] - a[1])
-        .slice(0, 30)
+        .slice(0, 20)
         .map(([term]) => term.charAt(0).toUpperCase() + term.slice(1));
 }
 
@@ -1407,13 +1174,9 @@ function extractKeyConcepts(text){
         if(definitionMatch){
             concepts.add(definitionMatch[1]);
         }
-        
-        if(line.length < 100 && line === line.toUpperCase()){
-            concepts.add(line);
-        }
     });
     
-    return Array.from(concepts).slice(0, 20);
+    return Array.from(concepts).slice(0, 15);
 }
 
 function createDefinitionQuestion(term, text, index){
@@ -1427,7 +1190,7 @@ function createDefinitionQuestion(term, text, index){
     }
     
     return {
-        q: `What is the definition or meaning of "${term}" based on the text?`,
+        q: `What is the definition of "${term}" based on the text?`,
         options: [
             `It refers to ${term.toLowerCase()} as described in the context`,
             `A similar but incorrect concept`,
@@ -1477,7 +1240,7 @@ function createFallbackQuestion(paragraph, index){
     const mainSentence = sentences[0] || paragraph.substring(0, 100);
     
     return {
-        q: `What is the main idea of this text: "${mainSentence.substring(0, 80)}..."?`,
+        q: `What is the main idea: "${mainSentence.substring(0, 80)}..."?`,
         options: [
             `It discusses the topic as described`,
             `It presents an alternative view`,
@@ -1494,9 +1257,9 @@ function createStudyChaptersFromText(text){
     const paragraphs = text.split(/\n\s*\n/).filter(p => p.length > 80);
     
     Game.chapters = [];
-    const chunkSize = Math.ceil(paragraphs.length / 4);
+    const chunkSize = Math.ceil(paragraphs.length / 3);
     
-    for(let i=0; i<4 && i*chunkSize < paragraphs.length; i++){
+    for(let i=0; i<3 && i*chunkSize < paragraphs.length; i++){
         const start = i * chunkSize;
         const end = Math.min(start + chunkSize, paragraphs.length);
         const chapterText = paragraphs.slice(start, end).join('\n\n');
@@ -1504,7 +1267,7 @@ function createStudyChaptersFromText(text){
         Game.chapters.push({
             id: `chapter${i+1}`,
             title: `Section ${i+1}: Key Concepts`,
-            content: `<h2>Section ${i+1}</h2><p>${chapterText.substring(0, 800)}${chapterText.length > 800 ? '...' : ''}</p>`
+            content: `<h2>Section ${i+1}</h2><p>${chapterText.substring(0, 600)}${chapterText.length > 600 ? '...' : ''}</p>`
         });
     }
     
@@ -1589,7 +1352,7 @@ function updateStats(){
             Game.awardedMilestones.add(m);
             Game.coins += 100;
             playSound('#coinSound');
-            showNotification('Milestone', `+100 coins for reaching ${m*500} points!`, 'success');
+            showToast('Milestone!', `+100 coins for reaching ${m*500} points!`, 'success');
         }
     }
 }
@@ -1642,19 +1405,19 @@ function selectAnswer(choice){
             Game.awardedStreaks.add(Game.streak);
             Game.coins += 50;
             playSound('#coinSound');
-            showNotification('Streak Bonus', `+50 coins for ${Game.streak} correct in a row!`, 'success');
+            showToast('Streak Bonus!', `+50 coins for ${Game.streak} correct in a row!`, 'success');
         }
 
         Game.coins += 10;
         playSound('#correctSound');
         confettiBurst();
-        showNotification('Correct!', '+10 coins earned', 'success', 2000);
+        showToast('Correct!', '+10 coins earned', 'success', 2000);
         
     } else {
         Game.streak = 0;
         Game.awardedStreaks.clear();
         playSound('#incorrectSound');
-        showNotification('Incorrect', 'Try again next time!', 'error', 2000);
+        showToast('Incorrect', 'Try again next time!', 'error', 2000);
     }
     
     showAnswerState(choice, true);
@@ -1708,7 +1471,7 @@ function startQuizWithQuestions(){
 }
 
 /* ===========================
-   TIMER SYSTEM
+   TIMER & POWER-UPS
    =========================== */
 let intervalId = null;
 
@@ -1751,7 +1514,7 @@ function startCountdown(sec, type){
             if(type==='question'){
                 if(Game.userAnswers[Game.currentIndex]===undefined){
                     Game.skipped.add(Game.currentIndex);
-                    showNotification('Time Up', 'Question skipped due to timeout', 'warning');
+                    showToast('Time Up', 'Question skipped due to timeout', 'warning');
                 }
                 const nxt = nextUnansweredOrNext();
                 if(nxt===Game.currentIndex){ 
@@ -1765,12 +1528,9 @@ function startCountdown(sec, type){
     },1000);
 }
 
-/* ===========================
-   POWER-UPS
-   =========================== */
 function use5050(){
     if(Game.powerups['5050']<=0){
-        showNotification('Power-up', 'No 50:50 power-ups remaining', 'warning');
+        showToast('Power-up', 'No 50:50 power-ups remaining', 'warning');
         return;
     }
     
@@ -1787,12 +1547,12 @@ function use5050(){
     Game.powerups['5050']--; 
     setPowerupCounts();
     playSound('#powerupSound');
-    showNotification('50:50 Used', 'Two wrong options removed', 'success', 2000);
+    showToast('50:50 Used', 'Two wrong options removed', 'success', 2000);
 }
 
 function useHint(){
     if(Game.powerups.hint<=0){
-        showNotification('Power-up', 'No hint power-ups remaining', 'warning');
+        showToast('Power-up', 'No hint power-ups remaining', 'warning');
         return;
     }
     
@@ -1807,7 +1567,7 @@ function useHint(){
 
 function useSkip(){
     if(Game.powerups.skip<=0){
-        showNotification('Power-up', 'No skip power-ups remaining', 'warning');
+        showToast('Power-up', 'No skip power-ups remaining', 'warning');
         return;
     }
     
@@ -1817,7 +1577,7 @@ function useSkip(){
     playSound('#powerupSound');
     
     const nxt = nextUnansweredOrNext();
-    showNotification('Skipped', 'Question skipped', 'warning', 2000);
+    showToast('Skipped', 'Question skipped', 'warning', 2000);
     loadQuestion(nxt);
 }
 
@@ -1851,7 +1611,7 @@ function updateShopButtons(){
 
 function buy(powerup, price){
     if(Game.coins < price){
-        showNotification('Shop', 'Not enough coins', 'error');
+        showToast('Shop', 'Not enough coins', 'error');
         return;
     }
     
@@ -1867,7 +1627,7 @@ function buy(powerup, price){
     $('#shopCoins').textContent = Game.coins;
     
     playSound('#coinSound');
-    showNotification('Purchase', `${powerup} power-up purchased`, 'success');
+    showToast('Purchase', `${powerup} power-up purchased`, 'success');
 }
 
 /* ===========================
@@ -1880,17 +1640,13 @@ function submitQuiz(){
     list.innerHTML='';
     
     let correct = 0;
-    let totalPoints = 0;
     
     Game.currentQuestions.forEach((q,i)=>{
         const item = create('div','result-item');
         const chosen = Game.userAnswers[i];
         const isCorrect = chosen===q.ans;
         
-        if(isCorrect){
-            correct++;
-            totalPoints += 100 + (Math.max(0, (Game.streakAtQuestion(i) || 0)-1) * 10);
-        }
+        if(isCorrect) correct++;
         
         item.classList.add(isCorrect?'correct':'incorrect');
         item.innerHTML = `
@@ -1932,32 +1688,20 @@ function submitQuiz(){
     if(percentage >= 80){ 
         playSound('#winSound'); 
         confettiBurst();
-        showNotification('Excellent!', `You scored ${percentage}%!`, 'success', 5000);
+        showToast('Excellent!', `You scored ${percentage}%!`, 'success', 5000);
     } else if(percentage >= 60){
-        showNotification('Good Job!', `You scored ${percentage}%`, 'success', 4000);
+        showToast('Good Job!', `You scored ${percentage}%`, 'success', 4000);
     }
     
     setActiveTab('results');
 }
 
-function Game.streakAtQuestion(index){
-    let streak = 0;
-    for(let i=0; i<=index; i++){
-        if(Game.userAnswers[i] === Game.currentQuestions[i].ans){
-            streak++;
-        } else {
-            streak = 0;
-        }
-    }
-    return streak;
-}
-
 /* ===========================
-   INITIALIZATION & EVENT HANDLERS
+   INITIALIZATION
    =========================== */
-async function init(){
-    // Initialize database connection
-    await connectToDatabase();
+function init(){
+    // Load saved quizzes
+    loadSavedQuizzes();
     
     // Build initial study content
     buildStudy();
@@ -1996,31 +1740,14 @@ async function init(){
         if(file && file.type === 'application/pdf'){
             loadPDF(file);
         } else {
-            showNotification('Error', 'Please drop a PDF file', 'error');
-        }
-    });
-    
-    // Database buttons
-    $('#testConnectionBtn').addEventListener('click', async () => {
-        showNotification('Database', 'Testing connection...', 'warning');
-        const connected = await connectToDatabase();
-        if(connected){
-            showNotification('Success', 'Connected to InfinityFree MySQL', 'success');
-        }
-    });
-    
-    $('#createTableBtn').addEventListener('click', async () => {
-        showNotification('Database', 'Creating table...', 'warning');
-        const created = await createQuizTable();
-        if(created){
-            showNotification('Success', 'Table created successfully', 'success');
+            showToast('Error', 'Please drop a PDF file', 'error');
         }
     });
     
     // Save button
     $('#saveQuizBtn').addEventListener('click', () => {
         if(Game.questions.length === 0){
-            showNotification('Error', 'No quiz to save. Upload a PDF first.', 'error');
+            showToast('Error', 'No quiz to save. Upload a PDF first.', 'error');
             return;
         }
         $('#saveModal').classList.add('show');
@@ -2028,46 +1755,30 @@ async function init(){
         $('#quizTitle').focus();
     });
     
-    $('#syncQuizzesBtn').addEventListener('click', async () => {
-        showNotification('Syncing', 'Refreshing quiz list...', 'warning');
-        await loadQuizzesFromDB();
-    });
-    
     // Save modal buttons
     $('#closeSave').addEventListener('click', () => $('#saveModal').classList.remove('show'));
     
-    $('#saveToDbBtn').addEventListener('click', async () => {
+    $('#saveToLocalBtn').addEventListener('click', () => {
         const title = $('#quizTitle').value.trim();
         const category = $('#quizCategory').value;
         
         if(!title){
-            showNotification('Error', 'Please enter a quiz title', 'error');
+            showToast('Error', 'Please enter a quiz title', 'error');
             return;
         }
         
-        await saveQuizToDB(title, category);
-        $('#saveModal').classList.remove('show');
-    });
-    
-    $('#saveLocalBackupBtn').addEventListener('click', () => {
-        const title = $('#quizTitle').value.trim();
-        if(!title){
-            showNotification('Error', 'Please enter a quiz title', 'error');
-            return;
-        }
-        saveQuizLocally(title);
-        showNotification('Backup', 'Quiz saved locally as backup', 'success');
+        saveQuizLocally(title, category);
     });
     
     // Other buttons
-    $('#refreshDbBtn').addEventListener('click', async () => {
-        showNotification('Refreshing', 'Loading quizzes...', 'warning');
-        await loadQuizzesFromDB();
+    $('#refreshBtn').addEventListener('click', () => {
+        loadSavedQuizzes();
+        showToast('Refreshed', 'Quiz list updated', 'success');
     });
     
-    $('#newQuizBtn').addEventListener('click', () => {
-        setActiveTab('upload');
-    });
+    $('#clearStorageBtn').addEventListener('click', clearAllQuizzes);
+    
+    $('#exportAllBtn').addEventListener('click', exportAllData);
     
     $('#saveResultsBtn').addEventListener('click', () => {
         const results = {
@@ -2075,15 +1786,16 @@ async function init(){
             correct: Game.correctCount,
             total: Game.currentQuestions.length,
             percentage: ((Game.correctCount/Game.currentQuestions.length)*100).toFixed(1),
-            date: new Date().toISOString()
+            date: new Date().toISOString(),
+            quiz: Game.pdfFileName || 'Untitled Quiz'
         };
         
         // Save to localStorage
-        const savedResults = JSON.parse(localStorage.getItem('quizResults') || '[]');
+        const savedResults = JSON.parse(localStorage.getItem('pdfQuizMaker_results') || '[]');
         savedResults.unshift(results);
-        localStorage.setItem('quizResults', JSON.stringify(savedResults.slice(0, 50)));
+        localStorage.setItem('pdfQuizMaker_results', JSON.stringify(savedResults.slice(0, 50)));
         
-        showNotification('Results Saved', 'Quiz results saved to browser storage', 'success');
+        showToast('Results Saved', 'Quiz results saved to browser', 'success');
     });
     
     $('#exportResultsBtn').addEventListener('click', () => {
@@ -2111,19 +1823,19 @@ async function init(){
         linkElement.setAttribute('download', exportFileDefaultName);
         linkElement.click();
         
-        showNotification('Exported', 'Results exported as JSON file', 'success');
+        showToast('Exported', 'Results exported as JSON file', 'success');
     });
     
     // Tabs
     $('#tabUpload').addEventListener('click',()=>setActiveTab('upload'));
     $('#tabSaved').addEventListener('click',()=>{
         setActiveTab('saved');
-        displayQuizzes(Game.quizList);
+        displayQuizzes();
     });
     $('#tabStudy').addEventListener('click',()=>setActiveTab('study'));
     $('#tabQuiz').addEventListener('click',()=>{
         if(Game.questions.length === 0){
-            showNotification('Error', 'Upload a PDF first to generate questions', 'error');
+            showToast('Error', 'Upload a PDF first to generate questions', 'error');
             setActiveTab('upload');
             return;
         }
@@ -2154,7 +1866,7 @@ async function init(){
         } else if(finishable()){
             submitQuiz();
         } else {
-            showNotification('Quiz', 'Please answer all questions first', 'warning');
+            showToast('Quiz', 'Please answer all questions first', 'warning');
         }
     });
     
@@ -2162,7 +1874,7 @@ async function init(){
         if(finishable()){ 
             submitQuiz(); 
         } else {
-            showNotification('Quiz', 'Please answer all questions before submitting', 'warning');
+            showToast('Quiz', 'Please answer all questions before submitting', 'warning');
         }
     });
 
@@ -2188,16 +1900,16 @@ async function init(){
     $('#retryWrong').addEventListener('click', ()=>{
         const wrong = Game.currentQuestions.filter((q,i)=>Game.userAnswers[i]!==q.ans);
         if(wrong.length === 0){
-            showNotification('Retry', 'All answers are correct!', 'success');
+            showToast('Retry', 'All answers are correct!', 'success');
             return;
         }
         restartQuiz(wrong);
-        showNotification('Retry', `Retrying ${wrong.length} incorrect questions`, 'warning');
+        showToast('Retry', `Retrying ${wrong.length} incorrect questions`, 'warning');
     });
     
     $('#retryAll').addEventListener('click', ()=>{
         restartQuiz(Game.questions);
-        showNotification('Restart', 'Quiz restarted', 'warning');
+        showToast('Restart', 'Quiz restarted', 'warning');
     });
 
     // Set default tab
