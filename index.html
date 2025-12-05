@@ -1,902 +1,688 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>PDF Quiz — Professional All-in-One</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>QuizPro – PDF to Quiz Generator</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<!-- TailwindCSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Icons -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
 
 <!-- PDF.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
 <style>
-:root{
-  --bg:#f6f7fb;--card:#fff;--primary:#4361ee;--accent:#3a0ca3;--muted:#6c757d;
-  --success:#34c6eb;--danger:#ff5ca8;
-  font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
-}
-*{box-sizing:border-box}
-body{margin:0;background:linear-gradient(180deg,#f2f4ff 0%,var(--bg) 100%);color:#222;min-height:100vh}
-header.appbar{position:sticky;top:0;z-index:999;background:var(--card);display:flex;justify-content:space-between;padding:12px 18px;border-bottom:1px solid #eef0f4;align-items:center}
-.brand{display:flex;gap:12px;align-items:center}
-.logo{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--primary),var(--accent));display:grid;place-items:center;color:#fff;font-weight:800}
-.tabs{display:flex;gap:8px}
-.tab{border:none;background:#f1f3ff;color:var(--primary);padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:700}
-.tab.active{background:var(--primary);color:#fff}
-.wrapper{max-width:1240px;margin:18px auto;padding:0 16px;display:flex;gap:18px;align-items:flex-start}
-.sidebar{width:300px;background:var(--card);padding:16px;border-radius:14px;box-shadow:0 8px 26px rgba(0,0,0,.06)}
-.main{flex:1;display:flex;flex-direction:column;gap:16px}
-.card{background:var(--card);border-radius:14px;padding:16px;box-shadow:0 8px 26px rgba(0,0,0,.06)}
-.upload-area{border:3px dashed #dbeafe;border-radius:12px;padding:28px;text-align:center;background:#f8fbff;cursor:pointer;transition:.18s}
-.upload-area.drag-over{border-color:var(--success);background:#e9fbff}
-.stats{display:flex;gap:10px;flex-wrap:wrap}
-.stat{background:#fff;padding:12px;border-radius:12px;min-width:110px;text-align:center}
-.stat .val{font-size:1.2rem;font-weight:800;color:var(--primary)}
-.question-card{padding:16px;border-radius:12px;background:#fff}
-.question-text{font-weight:700;font-size:1.05rem;margin:12px 0}
-.options{display:grid;gap:10px}
-.option{display:flex;gap:12px;align-items:center;padding:12px;border-radius:10px;border:2px solid #eef2ff;background:#fcfeff;cursor:pointer;transition:.12s}
-.option:hover{transform:translateY(-2px)}
-.option.correct{border-color:var(--success);background:#eafffb}
-.option.incorrect{border-color:var(--danger);background:#fff4f7}
-.option.faded{opacity:.28;pointer-events:none}
-.letter{width:36px;height:36px;border-radius:8px;background:#fff;border:1px solid #eef2ff;display:grid;place-items:center;font-weight:800}
-.powerups{display:flex;gap:8px;margin:10px 0}
-.powerup{width:92px;background:#fff;border-radius:10px;padding:10px;text-align:center;border:1px solid #eef2ff;cursor:pointer}
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:2500}
-.modal.show{display:flex}
-.modal-card{background:#fff;border-radius:12px;padding:18px;width:94%;max-width:720px}
-.toast{position:fixed;top:18px;right:18px;background:#fff;padding:12px 16px;border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,.14);display:none;z-index:3000}
-#confetti{position:fixed;inset:0;pointer-events:none;z-index:2000}
-@media (max-width:980px){.wrapper{flex-direction:column}.sidebar{width:100%}}
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-thumb { background: #93c5fd; border-radius: 5px; }
+.fade { opacity: .4; pointer-events: none; }
+.option-correct { border-color: #22c55e !important; background: #dcfce7 !important; }
+.option-wrong { border-color: #ef4444 !important; background: #fee2e2 !important; }
 </style>
 </head>
-<body>
 
-<header class="appbar">
-  <div class="brand">
-    <div class="logo">PQ</div>
-    <div>
-      <div style="font-weight:800">PDF QUIZ — Professional</div>
-      <small style="color:var(--muted)">Upload → Generate → Quiz</small>
-    </div>
-  </div>
+<body class="bg-gray-100 text-gray-800">
 
-  <div style="display:flex;gap:10px;align-items:center">
-    <div style="background:#fff;padding:8px 12px;border-radius:999px;border:1px solid #eef2ff;display:flex;gap:8px;align-items:center">
-      <i class="fa-solid fa-coins" style="color:#f39c12"></i> <span id="coinsTop">100</span>
-    </div>
-    <div class="tabs" role="tablist">
-      <button class="tab active" data-tab="upload">Upload</button>
-      <button class="tab" data-tab="configure">Configure</button>
-      <button class="tab" data-tab="quiz">Quiz</button>
-      <button class="tab" data-tab="results">Results</button>
-      <button class="tab" data-tab="saved">Saved</button>
+<!-- HEADER -->
+<header class="w-full bg-white shadow sticky top-0 z-50">
+  <div class="max-w-6xl mx-auto flex items-center justify-between p-4">
+    <h1 class="text-2xl font-bold text-blue-600 flex items-center gap-2">
+      <i class="fa-solid fa-bolt"></i> QuizPro
+    </h1>
+
+    <div class="flex items-center space-x-4">
+      <div class="flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-full border border-blue-200">
+        <i class="fa-solid fa-coins text-yellow-500"></i>
+        <span id="coinsTop" class="font-semibold">100</span>
+      </div>
     </div>
   </div>
 </header>
 
-<div id="toast" class="toast"></div>
-<div id="confetti"></div>
+<!-- MAIN WRAPPER -->
+<div class="max-w-6xl mx-auto p-4 flex flex-col md:flex-row gap-4">
 
-<main class="wrapper">
+  <!-- SIDEBAR -->
+  <aside class="w-full md:w-64 bg-white rounded-xl shadow p-4 h-fit sticky top-20">
+    <h2 class="font-bold text-lg mb-2">Navigation</h2>
+    <div id="questionGrid" class="flex flex-wrap gap-2"></div>
 
-  <aside class="sidebar card">
-    <h3>Navigator</h3>
-    <div id="questionGrid" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px"></div>
-
-    <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
-      <button id="saveQuizBtn" class="tab" style="width:100%"><i class="fa-solid fa-save"></i> Save Quiz</button>
-      <button id="exportAllBtn" class="tab" style="width:100%"><i class="fa-solid fa-download"></i> Export</button>
-      <button id="clearStorageBtn" class="tab" style="width:100%"><i class="fa-solid fa-trash"></i> Clear Storage</button>
+    <div class="mt-4 space-y-2">
+      <button id="saveQuizBtn" class="w-full py-2 bg-blue-100 hover:bg-blue-200 rounded-lg font-semibold">
+        <i class="fa-solid fa-save"></i> Save Quiz
+      </button>
+      <button id="exportAllBtn" class="w-full py-2 bg-gray-100 hover:bg-gray-200 rounded-lg font-semibold">
+        <i class="fa-solid fa-download"></i> Export Seeds
+      </button>
+      <button id="clearStorageBtn" class="w-full py-2 bg-red-100 hover:bg-red-200 rounded-lg font-semibold">
+        <i class="fa-solid fa-trash"></i> Clear Saved
+      </button>
     </div>
-
-    <small style="display:block;margin-top:12px;color:var(--muted)">Saved quizzes are stored in your browser's local storage.</small>
   </aside>
 
-  <section class="main">
+  <!-- MAIN -->
+  <section class="flex-1 space-y-6">
 
-    <div class="stats">
-      <div class="stat"><div class="val" id="currentQ">—</div><div>Current</div></div>
-      <div class="stat"><div class="val" id="score">0</div><div>Score</div></div>
-      <div class="stat"><div class="val" id="correctCount">0</div><div>Correct</div></div>
-      <div class="stat"><div class="val" id="streak">0</div><div>Streak</div></div>
-      <div class="stat"><div class="val" id="coins">100</div><div>Coins</div></div>
-      <div class="stat"><div class="val" id="timerVal">—</div><div>Timer</div></div>
-    </div>
-
-    <!-- Upload -->
-    <div id="uploadCard" class="card">
-      <h2>Upload PDF</h2>
-      <p style="color:var(--muted)">Drop a PDF or click Browse. Text will be extracted and used to generate question seeds.</p>
-
-      <div id="dropArea" class="upload-area">
-        <div style="font-size:44px;color:var(--primary)"><i class="fa-solid fa-file-pdf"></i></div>
-        <h3>Drop PDF here</h3>
-        <p style="color:var(--muted)">We'll extract text and find sentences suitable for questions.</p>
-        <div style="margin-top:10px">
-          <button id="browseBtn" class="tab"><i class="fa-solid fa-folder-open"></i> Browse</button>
-        </div>
-        <input type="file" id="pdfInput" accept=".pdf" style="display:none">
-        <div id="fileInfo" style="display:none;margin-top:10px;padding:10px;border-radius:8px;background:#f0f6ff"><strong id="fileName"></strong> — <span id="fileSize"></span></div>
+    <!-- STATS -->
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
+      <div class="bg-white p-4 rounded-xl shadow text-center">
+        <div class="text-xl font-bold" id="currentQ">–</div>
+        <div class="text-gray-500 text-sm">Current</div>
       </div>
 
-      <div id="progressWrapper" hidden style="margin-top:12px;">
-        <div style="height:10px;background:#eef2ff;border-radius:8px;overflow:hidden">
-          <div id="progressBar" style="height:100%;width:0%;background:var(--primary);transition:width .2s"></div>
-        </div>
-        <div id="progressText" style="margin-top:8px;color:var(--muted)">Processing…</div>
+      <div class="bg-white p-4 rounded-xl shadow text-center">
+        <div class="text-xl font-bold" id="score">0</div>
+        <div class="text-gray-500 text-sm">Score</div>
+      </div>
+
+      <div class="bg-white p-4 rounded-xl shadow text-center">
+        <div class="text-xl font-bold" id="correctCount">0</div>
+        <div class="text-gray-500 text-sm">Correct</div>
+      </div>
+
+      <div class="bg-white p-4 rounded-xl shadow text-center">
+        <div class="text-xl font-bold" id="streak">0</div>
+        <div class="text-gray-500 text-sm">Streak</div>
+      </div>
+
+      <div class="bg-white p-4 rounded-xl shadow text-center">
+        <div class="text-xl font-bold" id="coins">100</div>
+        <div class="text-gray-500 text-sm">Coins</div>
+      </div>
+
+      <div class="bg-white p-4 rounded-xl shadow text-center">
+        <div class="text-xl font-bold" id="timerVal">–</div>
+        <div class="text-gray-500 text-sm">Timer</div>
       </div>
     </div>
 
-    <!-- Configure -->
-    <div id="configureCard" class="card">
-      <h2>Configure Generation</h2>
-      <div style="display:flex;gap:12px;flex-wrap:wrap">
-        <div style="min-width:220px">
-          <label><strong>Questions to generate</strong></label>
-          <select id="numQuestions" style="width:100%;padding:8px;border-radius:8px;margin-top:6px">
-            <option value="5">5</option>
-            <option value="10" selected>10</option>
-            <option value="20">20</option>
+    <!-- UPLOAD -->
+    <div id="uploadCard" class="bg-white rounded-xl shadow p-5">
+      <h2 class="text-xl font-bold mb-1">Upload PDF</h2>
+      <p class="text-gray-500 mb-4">Extract text to generate optimized quiz questions.</p>
+
+      <div id="dropArea" class="border-2 border-dashed border-blue-300 bg-blue-50 rounded-xl p-6 text-center cursor-pointer">
+        <i class="fa-solid fa-file-pdf text-4xl text-blue-600"></i>
+        <h3 class="font-semibold mt-2">Drop PDF here</h3>
+        <button id="browseBtn" class="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg">Browse</button>
+        <input type="file" id="pdfInput" accept=".pdf" class="hidden" />
+      </div>
+
+      <div id="fileInfo" class="hidden mt-3 p-3 bg-blue-100 rounded-lg flex justify-between">
+        <span id="fileName" class="font-bold"></span>
+        <span id="fileSize"></span>
+      </div>
+
+      <div id="progressWrapper" class="hidden mt-3">
+        <div class="h-2 w-full bg-gray-200 rounded">
+          <div id="progressBar" class="h-full bg-blue-500 rounded" style="width:0%"></div>
+        </div>
+        <div id="progressText" class="text-sm text-gray-500 mt-1">Processing…</div>
+      </div>
+    </div>
+
+    <!-- CONFIG -->
+    <div id="configureCard" class="bg-white rounded-xl shadow p-5">
+      <h2 class="text-xl font-bold mb-3">Configure</h2>
+
+      <div class="grid md:grid-cols-3 gap-4">
+
+        <div>
+          <label class="font-semibold">Questions</label>
+          <select id="numQuestions" class="w-full mt-1 p-2 border rounded-lg">
+            <option>5</option><option selected>10</option><option>20</option>
           </select>
         </div>
 
-        <div style="min-width:220px">
-          <label><strong>Difficulty</strong></label>
-          <select id="difficulty" style="width:100%;padding:8px;border-radius:8px;margin-top:6px">
-            <option value="mixed">Mixed</option>
-            <option value="basic">Basic</option>
-            <option value="intermediate" selected>Intermediate</option>
-            <option value="advanced">Advanced</option>
+        <div>
+          <label class="font-semibold">Difficulty</label>
+          <select id="difficulty" class="w-full mt-1 p-2 border rounded-lg">
+            <option>mixed</option><option>basic</option>
+            <option selected>intermediate</option><option>advanced</option>
           </select>
         </div>
 
-        <div style="min-width:220px">
-          <label><strong>Focus keywords (comma)</strong></label>
-          <input id="focusAreas" placeholder="e.g., taxation, photosynthesis" style="width:100%;padding:8px;border-radius:8px;margin-top:6px">
+        <div>
+          <label class="font-semibold">Focus Keywords</label>
+          <input id="focusAreas" class="w-full mt-1 p-2 border rounded-lg" placeholder="comma separated" />
+        </div>
+
+      </div>
+
+      <div class="flex items-center gap-4 mt-4">
+        <button id="genBtn" class="px-5 py-2 bg-blue-600 text-white rounded-lg shadow">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Generate
+        </button>
+        <div class="text-gray-500">Seeds: <b id="seedCount">0</b></div>
+      </div>
+    </div>
+
+    <!-- QUIZ -->
+    <div id="quizCard" class="hidden bg-white rounded-xl shadow p-5">
+
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="font-bold" id="qTitle">Question</h3>
+          <p class="text-gray-500 text-sm" id="qIndex">0 / 0</p>
         </div>
       </div>
 
-      <div style="margin-top:12px;display:flex;gap:10px;align-items:center">
-        <button id="genBtn" class="tab" style="background:linear-gradient(90deg,var(--primary),var(--accent));color:#fff"><i class="fa-solid fa-magic"></i> Generate Questions</button>
-        <button id="buildStudyBtn" class="tab">Build Study Material</button>
-        <div style="margin-left:auto;color:var(--muted)">Available seeds: <strong id="seedCount">0</strong></div>
+      <!-- Powerups -->
+      <div class="flex gap-3 mt-4">
+        <button id="pu5050" class="px-3 py-2 bg-gray-100 border rounded-xl">
+          50:50 <span id="count5050" class="font-bold">3</span>
+        </button>
+        <button id="puHint" class="px-3 py-2 bg-gray-100 border rounded-xl">
+          <i class="fa-solid fa-lightbulb"></i> <span id="countHint">3</span>
+        </button>
+        <button id="puSkip" class="px-3 py-2 bg-gray-100 border rounded-xl">
+          Skip <span id="countSkip">2</span>
+        </button>
       </div>
 
-      <p style="color:var(--muted);margin-top:8px">If the document doesn't have enough suitable sentences, the questions dropdown will be limited to the real maximum you can produce.</p>
+      <div id="qText" class="mt-5 text-lg font-semibold"></div>
+
+      <div id="options" class="grid gap-3 mt-4"></div>
+      <div id="hint" class="hidden mt-3 p-3 bg-yellow-50 border rounded-lg text-sm"></div>
+
+      <div class="flex gap-3 mt-5">
+        <button id="prevBtn" class="px-4 py-2 bg-gray-200 rounded-lg">Prev</button>
+        <button id="nextBtn" class="px-4 py-2 bg-gray-200 rounded-lg">Next</button>
+        <button id="submitBtn" class="ml-auto px-5 py-2 bg-blue-600 text-white rounded-lg">Submit</button>
+      </div>
+
     </div>
 
-    <!-- Quiz -->
-    <div id="quizCard" class="card question-card" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div><h3 id="qTitle">Question</h3><div style="color:var(--muted)" id="qIndex">0 / 0</div></div>
-        <div style="display:flex;gap:10px;align-items:center">
-          <div style="display:flex;gap:6px;align-items:center">
-            <button class="tab timeropt" data-mode="none">No timer</button>
-            <button class="tab timeropt active" data-mode="question">Per Q</button>
-            <button class="tab timeropt" data-mode="quiz">Quiz</button>
-          </div>
-          <div style="display:flex;gap:6px;align-items:center;margin-left:8px">
-            <input type="number" id="quizTimerInput" value="300" min="10" style="width:86px;padding:8px;border-radius:8px">
-            <input type="number" id="questionTimerInput" value="30" min="5" style="width:80px;padding:8px;border-radius:8px">
-            <button id="applyTimers" class="tab">Apply</button>
-          </div>
-        </div>
-      </div>
+    <!-- RESULTS -->
+    <div id="resultsCard" class="hidden bg-white rounded-xl shadow p-5">
+      <h2 class="text-xl font-bold mb-3">Results</h2>
+      <div id="resultsSummary" class="mb-4"></div>
+      <div id="resultsList" class="space-y-3"></div>
 
-      <div class="powerups">
-        <div id="pu5050" class="powerup"><div style="font-weight:800">50:50</div><div class="count" id="count5050">3</div></div>
-        <div id="puHint" class="powerup"><div style="font-weight:800"><i class="fa-solid fa-lightbulb"></i></div><div class="count" id="countHint">3</div></div>
-        <div id="puSkip" class="powerup"><div style="font-weight:800"><i class="fa-solid fa-forward"></i></div><div class="count" id="countSkip">2</div></div>
-      </div>
-
-      <div class="question-text" id="qText">Question text</div>
-      <div id="options" class="options"></div>
-      <div id="hint" style="display:none;margin-top:8px;color:var(--muted)"></div>
-
-      <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
-        <button id="prevBtn" class="tab"><i class="fa-solid fa-arrow-left"></i> Prev</button>
-        <button id="nextBtn" class="tab">Next <i class="fa-solid fa-arrow-right"></i></button>
-        <button id="submitBtn" class="tab" style="margin-left:auto;background:var(--primary);color:#fff"><i class="fa-solid fa-paper-plane"></i> Submit</button>
+      <div class="flex gap-3 mt-4">
+        <button id="retryWrong" class="px-4 py-2 bg-red-100 rounded-lg">Retry Wrong</button>
+        <button id="retryAll" class="px-4 py-2 bg-blue-100 rounded-lg">Retry All</button>
+        <button id="exportResults" class="px-4 py-2 bg-gray-200 rounded-lg">Export</button>
       </div>
     </div>
 
-    <!-- Results -->
-    <div id="resultsCard" class="card" style="display:none">
-      <h2>Results</h2>
-      <div id="resultsSummary"></div>
-      <div id="resultsList" style="margin-top:10px"></div>
-      <div style="margin-top:12px;display:flex;gap:8px">
-        <button id="retryWrong" class="tab">Retry Wrong</button>
-        <button id="retryAll" class="tab">Retry All</button>
-        <button id="exportResults" class="tab">Export Results</button>
-      </div>
-    </div>
-
-    <!-- Saved -->
-    <div id="savedCard" class="card" style="display:none">
-      <h2>Saved Quizzes</h2>
-      <div id="quizList"></div>
+    <!-- SAVED -->
+    <div id="savedCard" class="hidden bg-white rounded-xl shadow p-5">
+      <h2 class="text-xl font-bold mb-3">Saved Quizzes</h2>
+      <div id="quizList" class="space-y-3"></div>
     </div>
 
   </section>
-</main>
+</div>
 
-<!-- Shop modal -->
-<div id="shopModal" class="modal"><div class="modal-card">
-  <div style="display:flex;justify-content:space-between;align-items:center">
-    <h3>Store</h3>
-    <button id="closeShop" class="tab">Close</button>
-  </div>
-  <p>Coins: <strong id="shopCoins">0</strong></p>
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:12px">
-    <div style="padding:12px;border-radius:8px;border:1px solid #eef2ff">
-      <h4>50:50</h4><p class="small">Remove two wrong answers</p>
-      <button class="tab shopBuy" data-power="5050" data-price="80">Buy (80)</button>
-    </div>
-    <div style="padding:12px;border-radius:8px;border:1px solid #eef2ff">
-      <h4>Hint</h4><p class="small">Reveal a hint</p>
-      <button class="tab shopBuy" data-power="hint" data-price="60">Buy (60)</button>
-    </div>
-    <div style="padding:12px;border-radius:8px;border:1px solid #eef2ff">
-      <h4>Skip</h4><p class="small">Skip a question</p>
-      <button class="tab shopBuy" data-power="skip" data-price="50">Buy (50)</button>
-    </div>
-  </div>
-</div></div>
+<!-- TOAST -->
+<div id="toast" class="fixed top-4 right-4 hidden bg-white shadow-lg rounded-lg px-4 py-2 border">
+  <span id="toastText"></span>
+</div>
 
-<!-- Save modal -->
-<div id="saveModal" class="modal"><div class="modal-card">
-  <div style="display:flex;justify-content:space-between;align-items:center">
-    <h3>Save Quiz</h3><button id="closeSave" class="tab">Close</button>
-  </div>
-  <label><strong>Title</strong></label>
-  <input id="quizTitle" style="width:100%;padding:8px;border-radius:8px;margin-top:6px">
-  <label style="margin-top:8px"><strong>Category</strong></label>
-  <select id="quizCategory" style="width:100%;padding:8px;border-radius:8px;margin-top:6px">
-    <option>General</option><option>Education</option><option>Science</option><option>Other</option>
-  </select>
-  <div style="display:flex;gap:8px;margin-top:12px">
-    <button id="saveToLocal" class="tab" style="background:var(--primary);color:#fff">Save</button>
-  </div>
-</div></div>
-
-<!-- Sounds -->
-<audio id="correctSound" src="https://www.soundjay.com/buttons/sounds/button-1.mp3" preload="auto"></audio>
-<audio id="incorrectSound" src="https://www.soundjay.com/buttons/sounds/button-10.mp3" preload="auto"></audio>
-<audio id="coinSound" src="https://www.soundjay.com/buttons/sounds/button-7.mp3" preload="auto"></audio>
-<audio id="powerSound" src="https://www.soundjay.com/buttons/sounds/button-4.mp3" preload="auto"></audio>
-<audio id="winSound" src="https://www.soundjay.com/misc/sounds/success-sound-2.mp3" preload="auto"></audio>
+<!-- AUDIO -->
+<audio id="correctSound" src="https://www.soundjay.com/buttons/sounds/button-1.mp3"></audio>
+<audio id="incorrectSound" src="https://www.soundjay.com/buttons/sounds/button-10.mp3"></audio>
+<audio id="coinSound" src="https://www.soundjay.com/buttons/sounds/button-7.mp3"></audio>
+<audio id="powerSound" src="https://www.soundjay.com/buttons/sounds/button-4.mp3"></audio>
 
 <script>
-/* ---------------------------
-   App state
---------------------------- */
+/* ============================================================
+   STATE
+============================================================ */
 const App = {
-  pdfText: '',
-  pdfFileName: '',
-  seeds: [], // raw candidate sentences (unique)
-  questions: [], // final quiz questions
-  currentIndex: 0,
+  pdfText: "",
+  seeds: [],
+  questions: [],
   userAnswers: {},
   skipped: new Set(),
+  currentIndex: 0,
   score: 0,
   correctCount: 0,
   streak: 0,
   coins: 100,
-  powerups: { '5050': 3, hint: 3, skip: 2 },
-  timers: { mode: 'question', quiz: 300, question: 30, interval: null, quizRemaining: null, questionRemaining: null }
+  powerups: { "5050": 3, hint: 3, skip: 2 }
 };
 
-/* ---------------------------
-   Small utilities
---------------------------- */
-const $ = s => document.querySelector(s);
-function create(el, cls, txt){ const e=document.createElement(el); if(cls) e.className=cls; if(txt!==undefined) e.textContent=txt; return e; }
-function showToast(title, ms=2500){
-  const t = $('#toast'); t.textContent = title; t.style.display = 'block';
-  setTimeout(()=> t.style.display = 'none', ms);
+/* ============================================================
+   UTILITIES
+============================================================ */
+const $ = (s) => document.querySelector(s);
+function toast(msg) {
+  $("#toastText").textContent = msg;
+  $("#toast").classList.remove("hidden");
+  setTimeout(() => $("#toast").classList.add("hidden"), 1800);
 }
-function playSound(id){ try{ const a = document.querySelector(id); if(a){ a.currentTime = 0; a.play().catch(()=>{}); } }catch(e){} }
-
-/* ---------------------------
-   PDF upload & extraction
---------------------------- */
-const pdfInput = $('#pdfInput'), dropArea = $('#dropArea'), fileInfo = $('#fileInfo');
-const progressWrapper = $('#progressWrapper'), progressBar = $('#progressBar'), progressText = $('#progressText');
-
-$('#browseBtn').addEventListener('click', ()=> pdfInput.click());
-pdfInput.addEventListener('change', e => { if(e.target.files[0]) loadPDF(e.target.files[0]); });
-
-['dragenter','dragover'].forEach(ev => dropArea.addEventListener(ev, e=>{ e.preventDefault(); dropArea.classList.add('drag-over'); }));
-['dragleave','drop'].forEach(ev => dropArea.addEventListener(ev, e=>{ e.preventDefault(); dropArea.classList.remove('drag-over'); }));
-dropArea.addEventListener('drop', e => {
-  e.preventDefault();
-  const f = e.dataTransfer.files && e.dataTransfer.files[0];
-  if(!f){ showToast('No file dropped'); return; }
-  if(f.type !== 'application/pdf'){ showToast('Please drop a PDF file'); return; }
-  loadPDF(f);
-});
-
-async function loadPDF(file){
-  App.pdfFileName = file.name;
-  $('#fileName').textContent = file.name;
-  $('#fileSize').textContent = Math.round(file.size/1024) + ' KB';
-  fileInfo.style.display = 'block';
-  progressWrapper.hidden = false;
-  progressBar.style.width = '4%'; progressText.textContent = 'Loading file...';
-
-  try{
-    const buffer = await file.arrayBuffer();
-    const loadingTask = pdfjsLib.getDocument({data: buffer});
-    const pdf = await loadingTask.promise;
-    const total = pdf.numPages;
-    let text = '';
-    for(let i=1;i<=total;i++){
-      const page = await pdf.getPage(i);
-      const txt = await page.getTextContent();
-      const pageText = txt.items.map(it => it.str).join(' ');
-      text += '\n\n' + pageText;
-      const pct = Math.round((i/total)*100);
-      progressBar.style.width = (pct>2? pct:2) + '%';
-      progressText.textContent = `Extracting page ${i} / ${total}`;
-    }
-    App.pdfText = text.trim();
-    progressBar.style.width = '100%'; progressText.textContent = 'Extraction complete';
-    showToast('PDF text extracted', 1800);
-    buildSeedsFromText();
-  }catch(err){
-    console.error(err);
-    showToast('Failed to read PDF');
-    progressWrapper.hidden = true;
-  }
+function play(id) {
+  const el = $(id);
+  if (el) { el.currentTime = 0; el.play().catch(()=>{}); }
 }
 
-/* ---------------------------
-   Build candidate seeds (improved)
-   Produces App.seeds (unique, high-quality sentences)
---------------------------- */
-function buildSeedsFromText(){
-  const text = (App.pdfText || '').replace(/\s+/g,' ').trim();
-  if(!text){ showToast('No text to process'); return; }
+/* ============================================================
+   PDF UPLOAD
+============================================================ */
+$("#browseBtn").onclick = () => $("#pdfInput").click();
+$("#pdfInput").onchange = (e) => loadPDF(e.target.files[0]);
 
-  // Split into sentences using punctuation boundaries (handles abbreviations poorly but good enough)
-  const rawSentences = text.split(/(?<=[.?!])\s+/).map(s=>s.trim()).filter(Boolean);
-
-  // filter out tiny lines & capture definition-like or keyword-rich sentences first
-  const seeds = [];
-  const patterns = [/\b(is|are|means|refers to|defined as|consists of|composed of|characterized by)\b/i, /:\s/, /\b(e.g.|for example)\b/i];
-
-  rawSentences.forEach(s=>{
-    if(s.length < 30) return;
-    // ignore lines that are mostly numbers or references
-    if(/^[\d\W]+$/.test(s)) return;
-    // prefer sentences with patterns
-    if(patterns.some(p=>p.test(s))) seeds.push(s);
+["dragenter","dragover"].forEach(ev=>{
+  $("#dropArea").addEventListener(ev, e=>{
+    e.preventDefault(); e.stopPropagation();
+    $("#dropArea").classList.add("bg-blue-100");
   });
+});
+["dragleave","drop"].forEach(ev=>{
+  $("#dropArea").addEventListener(ev, e=>{
+    e.preventDefault(); $("#dropArea").classList.remove("bg-blue-100");
+  });
+});
+$("#dropArea").ondrop = (e)=>{
+  const f = e.dataTransfer.files[0];
+  if (f?.type === "application/pdf") loadPDF(f);
+  else toast("Not a PDF");
+};
 
-  // fallback: if not enough seeds, take other long sentences and headings
-  if(seeds.length < 8){
-    rawSentences.forEach(s=>{
-      if(s.length >= 40 && seeds.length < 200) seeds.push(s);
+async function loadPDF(file) {
+  $("#fileInfo").classList.remove("hidden");
+  $("#fileName").textContent = file.name;
+  $("#fileSize").textContent = Math.round(file.size/1024)+" KB";
+
+  $("#progressWrapper").classList.remove("hidden");
+  $("#progressBar").style.width = "5%";
+
+  const buffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data:buffer}).promise;
+
+  let text = "";
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(it => it.str).join(" ") + "\n";
+    $("#progressBar").style.width = Math.round((i/pdf.numPages)*100)+"%";
+  }
+
+  App.pdfText = text;
+  toast("PDF Loaded");
+  extractSeeds();
+}
+
+/* ============================================================
+   SMART SEED EXTRACTION
+============================================================ */
+function extractSeeds() {
+  const text = App.pdfText.replace(/\s+/g," ");
+  const raw = text.split(/(?<=[.?!])\s+/).filter(s=>s.length>30);
+
+  const keywords = ["is","are","refers to","defined as","consists of","because","therefore"];
+
+  let seeds = raw.filter(s => keywords.some(k=>s.toLowerCase().includes(k)));
+
+  if (seeds.length < 10)
+    seeds = seeds.concat(raw.slice(0, 50));
+
+  seeds = [...new Set(seeds)];
+
+  App.seeds = seeds;
+  $("#seedCount").textContent = seeds.length;
+
+  updateDropdown(seeds.length);
+}
+
+/* ============================================================
+   GENERATE QUESTIONS
+============================================================ */
+function generateQuestions(n, focus=[]) {
+
+  const out = [];
+  const used = new Set();
+
+  function pickWord(s) {
+    const words = s.split(" ").filter(w=>w.length>4);
+    if (focus?.length) {
+      for (const f of focus) {
+        const hit = words.find(w=>w.toLowerCase().includes(f.toLowerCase()));
+        if (hit) return hit;
+      }
+    }
+    return words.sort((a,b)=>b.length-a.length)[0];
+  }
+
+  function distractors(word) {
+    const base = [
+      "Not related to "+word,
+      word+" (incorrect form)",
+      "Another concept"
+    ];
+    return base;
+  }
+
+  for (const s of App.seeds) {
+    if (out.length >= n) break;
+    const key = pickWord(s);
+    if (!key) continue;
+
+    const qtext = s.replace(new RegExp(key,"i"), "_____");
+    const choices = [key, ...distractors(key)].slice(0,4);
+    shuffle(choices);
+
+    const id = qtext.toLowerCase().slice(0,50);
+    if (used.has(id)) continue;
+
+    used.add(id);
+    out.push({
+      question: qtext,
+      options: choices,
+      ans: choices.indexOf(key),
+      context: s,
+      hint: "Related to: "+key
     });
   }
 
-  // Deduplicate approximately (normalize)
-  const normSet = new Set();
-  const unique = [];
-  seeds.forEach(s=>{
-    const n = s.toLowerCase().replace(/[^a-z0-9 ]+/g,'').slice(0,120);
-    if(!normSet.has(n)){ normSet.add(n); unique.push(s); }
-  });
-
-  App.seeds = unique;
-  $('#seedCount').textContent = App.seeds.length;
-  // update dropdown with available maximum
-  rebuildNumDropdown(App.seeds.length);
-  showToast(`Found ${App.seeds.length} seed${App.seeds.length!==1?'s':''}`, 1800);
+  return out;
 }
+function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } }
 
-/* Rebuild the questions dropdown to reflect max available seeds */
-function rebuildNumDropdown(max){
-  const dropdown = $('#numQuestions');
-  dropdown.innerHTML = '';
-  // clamp max to 1..100
-  max = Math.max(1, Math.min(100, Math.floor(max)));
-  // build options descending (so largest available is default)
-  for(let i = Math.min(50, max); i>=1; i--){
-    const opt = document.createElement('option');
-    opt.value = i;
-    opt.textContent = i + (i===1 ? ' item' : ' items');
-    dropdown.appendChild(opt);
-  }
-  // set default selection to the min between current selection and max
-  const prior = parseInt(dropdown.value) || Math.min(10, max);
-  dropdown.value = prior <= max ? prior : max;
-}
+/* ============================================================
+   START QUIZ
+============================================================ */
+$("#genBtn").onclick = () => {
+  if (!App.seeds.length) return toast("Upload PDF first");
 
-/* ---------------------------
-   Question generation (improved & deterministic seeds->questions)
-   - Produces unique non-duplicated questions
-   - Returns array of {question, options[4], ans (index), hint, context}
---------------------------- */
-function generateQuestionsFromSeeds(requestedCount, focusKeywords=[], difficulty='mixed'){
-  requestedCount = Math.max(1, Math.floor(requestedCount || 10));
-  focusKeywords = (focusKeywords || []).map(s=>s.trim()).filter(Boolean).map(s=>s.toLowerCase());
+  const n = parseInt($("#numQuestions").value);
+  const focus = $("#focusAreas").value.split(",").map(s=>s.trim()).filter(Boolean);
 
-  const avail = App.seeds.slice(); // copy
-  const generated = [];
-  const usedQuestions = new Set();
-
-  // utility: pick a word to blank (prefer nouns / longer words)
-  function pickImportantWordFromSentence(sentence){
-    const words = sentence.split(/\s+/).map(w=>w.replace(/^[^\w]+|[^\w]+$/g,'')).filter(Boolean);
-    // filter candidate words
-    const candidates = words.filter(w=> w.length>4 && /^[A-Za-z]+$/.test(w) && !/^(the|this|that|they|there|which|where|whose)$/i.test(w));
-    if(candidates.length===0) return null;
-    // prefer words matching focus keywords
-    for(const fk of focusKeywords){
-      const match = candidates.find(c=> c.toLowerCase().includes(fk));
-      if(match) return match;
-    }
-    // choose a candidate heuristically: longer ones, or capitalized (proper nouns)
-    candidates.sort((a,b)=> b.length - a.length);
-    return candidates[0] || null;
+  if (App.seeds.length < n) {
+    updateDropdown(App.seeds.length);
+    return toast("Limited seeds. Dropdown adjusted.");
   }
 
-  // generate distractors (naive but diverse)
-  function generateDistractors(correct){
-    const c = (''+correct).trim();
-    const alt1 = c + ' (variation)';
-    const alt2 = 'A related concept';
-    const alt3 = 'Not the correct answer';
-    // ensure uniqueness and randomness
-    const arr = [alt1, alt2, alt3].map(x=>x);
-    // sometimes synthesize from sentence words
-    return arr.slice(0,3);
-  }
-
-  // create question object
-  function makeQuestion(sentence){
-    const keyword = pickImportantWordFromSentence(sentence);
-    if(!keyword) return null;
-    const qtext = sentence.replace(new RegExp(`\\b${escapeReg(keyword)}\\b`, 'i'), '_____');
-    // form options
-    const correct = keyword;
-    const distractors = generateDistractors(correct);
-    // mix
-    const opts = [correct, ...distractors];
-    // shuffle deterministically using sentence hash for variety
-    shuffleArray(opts);
-    const ansIndex = opts.findIndex(o => o === correct);
-    const q = { question: qtext, options: opts.slice(0,4), ans: ansIndex, hint: `Original: ${sentence.slice(0,120)}`, context: sentence };
-    return q;
-  }
-
-  // iterate seeds until requestedCount reached or seeds exhausted
-  while(generated.length < requestedCount && avail.length > 0){
-    // pick a random seed but bias the top ones
-    const idx = Math.floor(Math.random()*Math.min(avail.length, 12));
-    const seed = avail.splice(idx,1)[0];
-    // create question
-    const q = makeQuestion(seed);
-    if(!q) continue;
-    // de-duplicate by question text normalized
-    const norm = q.question.toLowerCase().replace(/[^a-z0-9 ]+/g,'').slice(0,120);
-    if(usedQuestions.has(norm)) continue;
-    usedQuestions.add(norm);
-    generated.push(q);
-  }
-
-  return generated;
-}
-
-/* ---------------------------
-   Helpers: shuffle, escapeReg
---------------------------- */
-function shuffleArray(arr){
-  for(let i=arr.length-1;i>0;i--){
-    const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]];
-  }
-  return arr;
-}
-function escapeReg(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
-
-/* ---------------------------
-   Quiz flow (start, render, answer, finish)
---------------------------- */
-function startQuiz(questions){
-  App.questions = questions.slice();
+  App.questions = generateQuestions(n, focus);
   App.userAnswers = {};
   App.skipped = new Set();
   App.currentIndex = 0;
-  App.score = 0; App.correctCount = 0; App.streak = 0;
-  $('#quizCard').style.display = 'block';
-  $('#resultsCard').style.display = 'none';
-  buildNavigator();
+  App.correctCount = 0;
+  App.score = 0;
+  App.streak = 0;
+
+  $("#quizCard").classList.remove("hidden");
+  $("#resultsCard").classList.add("hidden");
+
+  renderNavigator();
   loadQuestion(0);
-  startTimers();
   updateStats();
-  showToast(`Quiz started — ${questions.length} items`,1600);
-}
+};
 
-function buildNavigator(){
-  const grid = $('#questionGrid'); grid.innerHTML = '';
-  App.questions.forEach((q,i)=>{
-    const btn = create('button',null,String(i+1));
-    btn.style.border='none'; btn.style.padding='8px'; btn.style.borderRadius='8px'; btn.style.background='#f4f6ff';
-    btn.addEventListener('click',()=> loadQuestion(i));
-    grid.appendChild(btn);
-  });
-  refreshNavigator();
-}
-function refreshNavigator(){
-  const nodes = $('#questionGrid').childNodes;
-  nodes.forEach((n,i)=>{
-    n.style.outline = i===App.currentIndex ? '2px solid var(--primary)' : 'none';
-    n.style.background = (App.userAnswers[i] !== undefined) ? '#e7fbff' : '#f4f6ff';
+/* ============================================================
+   NAVIGATION + DISPLAY
+============================================================ */
+function renderNavigator() {
+  const g = $("#questionGrid");
+  g.innerHTML = "";
+  App.questions.forEach((q, i) => {
+    const b = document.createElement("button");
+    b.className = "w-9 h-9 rounded-lg bg-gray-100";
+    b.textContent = i+1;
+    b.onclick = ()=> loadQuestion(i);
+    g.appendChild(b);
   });
 }
+function updateNav() {
+  const children = $("#questionGrid").children;
+  [...children].forEach((c,i)=>{
+    c.className = "w-9 h-9 rounded-lg border " + 
+      (i === App.currentIndex ? "bg-blue-100 border-blue-500" :
+      App.userAnswers[i] !== undefined ? "bg-green-100 border-green-500" :
+      "bg-gray-100 border-gray-300");
+  });
+}
 
-function loadQuestion(i){
-  if(i<0 || i>=App.questions.length) return;
+function loadQuestion(i) {
   App.currentIndex = i;
   const q = App.questions[i];
-  $('#qTitle').textContent = `Question ${i+1}`;
-  $('#qIndex').textContent = `${i+1} / ${App.questions.length}`;
-  $('#qText').textContent = q.question;
-  $('#options').innerHTML = '';
-  q.options.forEach((opt, idx)=>{
-    const el = create('div','option');
-    const letter = create('div','letter', String.fromCharCode(65+idx));
-    const span = create('div',null,opt);
-    el.appendChild(letter); el.appendChild(span);
-    el.addEventListener('click',()=> selectAnswer(idx));
-    $('#options').appendChild(el);
-  });
-  $('#hint').style.display='none';
-  if(App.userAnswers[i] !== undefined) showAnswerState(App.userAnswers[i]);
-  refreshNavigator(); updateStats();
-  resetQuestionTimer();
-}
 
-function selectAnswer(choice){
-  const i = App.currentIndex;
-  if(App.userAnswers[i] !== undefined) return;
-  App.userAnswers[i] = choice;
-  const q = App.questions[i];
-  const correct = (choice === q.ans);
-  if(correct){ App.correctCount++; App.streak++; App.score += 100 + (App.streak-1)*10; App.coins += 10; playSound('#correctSound'); showToast('Correct +10 coins',1000); }
-  else { App.streak = 0; playSound('#incorrectSound'); showToast('Incorrect',1000); }
-  showAnswerState(choice);
+  $("#qTitle").textContent = "Question "+(i+1);
+  $("#qIndex").textContent = `${i+1} / ${App.questions.length}`;
+  $("#qText").textContent = q.question;
+
+  const optBox = $("#options");
+  optBox.innerHTML = "";
+
+  q.options.forEach((o, idx)=>{
+    const div = document.createElement("div");
+    div.className = "p-3 border rounded-xl bg-white cursor-pointer hover:bg-blue-50";
+    div.innerHTML = `<b>${String.fromCharCode(65+idx)}.</b> ${o}`;
+    div.onclick = ()=> choose(idx);
+    optBox.appendChild(div);
+  });
+
+  $("#hint").classList.add("hidden");
+  updateNav();
   updateStats();
 }
 
-function showAnswerState(chosen){
+/* ============================================================
+   ANSWERING
+============================================================ */
+function choose(idx) {
   const q = App.questions[App.currentIndex];
-  const opts = Array.from(document.querySelectorAll('#options .option'));
-  opts.forEach((o, idx)=>{
-    o.classList.remove('correct','incorrect','faded');
-    if(idx === q.ans) o.classList.add('correct');
-    if(idx === chosen && chosen !== q.ans) o.classList.add('incorrect');
-    if(idx !== q.ans && idx !== chosen) o.classList.add('faded');
+  if (App.userAnswers[App.currentIndex] !== undefined) return;
+
+  App.userAnswers[App.currentIndex] = idx;
+
+  const opts = [...$("#options").children];
+  opts.forEach((o,i)=>{
+    o.classList.remove("option-correct","option-wrong","fade");
+    if (i === q.ans) o.classList.add("option-correct");
+    if (i === idx && idx !== q.ans) o.classList.add("option-wrong");
+    if (i !== q.ans && i !== idx) o.classList.add("fade");
   });
+
+  if (idx === q.ans) {
+    App.correctCount++;
+    App.streak++;
+    App.score += 100 + (App.streak*10);
+    App.coins += 10;
+    play("#correctSound");
+  } else {
+    App.streak = 0;
+    play("#incorrectSound");
+  }
+
+  updateStats();
+  updateNav();
 }
 
-function nextUnansweredOrNext(){
-  for(let i=0;i<App.questions.length;i++) if(App.userAnswers[i] === undefined && !App.skipped.has(i)) return i;
-  return Math.min(App.currentIndex+1, App.questions.length-1);
-}
+$("#prevBtn").onclick = ()=> loadQuestion(Math.max(0, App.currentIndex-1));
+$("#nextBtn").onclick = ()=> loadQuestion(Math.min(App.questions.length-1, App.currentIndex+1));
 
-function finishable(){
-  return Object.keys(App.userAnswers).length + App.skipped.size >= App.questions.length;
-}
+$("#submitBtn").onclick = submitQuiz;
 
-function submitQuiz(){
-  stopAllTimers();
+/* ============================================================
+   SUBMIT RESULTS
+============================================================ */
+function submitQuiz() {
   const total = App.questions.length;
   const correct = App.correctCount;
   const percent = Math.round((correct/total)*100);
-  const summary = `<div style="padding:12px;background:#f8fffb;border-radius:8px"><strong>Score:</strong> ${App.score} • <strong>Correct:</strong> ${correct}/${total} • <strong>${percent}%</strong></div>`;
-  $('#resultsSummary').innerHTML = summary;
-  const list = $('#resultsList'); list.innerHTML = '';
-  App.questions.forEach((q,i)=>{
+
+  $("#resultsSummary").innerHTML =
+    `<div class="p-3 bg-blue-50 rounded-lg">
+      <b>${correct}/${total}</b> correct — <b>${percent}%</b> — Score: <b>${App.score}</b>
+    </div>`;
+
+  const list = $("#resultsList");
+  list.innerHTML = "";
+
+  App.questions.forEach((q, i)=>{
     const chosen = App.userAnswers[i];
-    const isCorrect = chosen === q.ans;
-    const item = create('div'); item.style.padding='8px'; item.style.marginBottom='8px'; item.style.borderRadius='8px';
-    item.style.background = isCorrect ? '#eafffb' : '#fff4f7';
-    item.innerHTML = `<div style="font-weight:700">${i+1}. ${q.question}</div>
-      <div style="margin-top:6px;color:var(--muted)">${q.options.map((op,idx)=>`<div>${String.fromCharCode(65+idx)}. ${op}${idx===q.ans?' ✅':''}${idx===chosen && !isCorrect?' ✖':''}</div>`).join('')}</div>
-      ${q.hint?'<div style="margin-top:6px;background:#f8faff;padding:8px;border-radius:6px"><strong>Hint:</strong> '+q.hint+'</div>':''}`;
-    list.appendChild(item);
+
+    const div = document.createElement("div");
+    div.className = "p-3 border rounded-xl " + 
+      (chosen === q.ans ? "bg-green-50" : "bg-red-50");
+
+    div.innerHTML =
+      `<b>${i+1}. ${q.question}</b><br>
+       ${q.options.map((op,idx)=>
+         `<div>${String.fromCharCode(65+idx)}. ${op} 
+           ${idx===q.ans?"✔️":""} 
+           ${idx===chosen && chosen!==q.ans?"❌":""}
+         </div>`
+       ).join("")}`;
+
+    list.appendChild(div);
   });
-  $('#resultsCard').style.display = 'block';
-  $('#quizCard').style.display = 'none';
-  showToast(`Quiz submitted — ${percent}%`, 3000);
-  if(percent >= 80) { playSound('#winSound'); confettiBurst(); }
+
+  $("#quizCard").classList.add("hidden");
+  $("#resultsCard").classList.remove("hidden");
 }
 
-/* ---------------------------
-   Powerups
---------------------------- */
-function setPowerupDisplays(){
-  $('#count5050').textContent = App.powerups['5050'];
-  $('#countHint').textContent = App.powerups['hint'];
-  $('#countSkip').textContent = App.powerups['skip'];
-  $('#coins').textContent = App.coins;
-  $('#coinsTop').textContent = App.coins;
-  $('#shopCoins').textContent = App.coins;
-  $('#score').textContent = App.score;
-  $('#currentQ').textContent = App.currentIndex+1 || '—';
+/* ============================================================
+   STATS
+============================================================ */
+function updateStats() {
+  $("#currentQ").textContent = App.currentIndex+1;
+  $("#score").textContent = App.score;
+  $("#correctCount").textContent = App.correctCount;
+  $("#streak").textContent = App.streak;
+  $("#coins").textContent = App.coins;
+  $("#coinsTop").textContent = App.coins;
+  $("#count5050").textContent = App.powerups["5050"];
+  $("#countHint").textContent = App.powerups["hint"];
+  $("#countSkip").textContent = App.powerups["skip"];
 }
 
-function use5050(){
-  if(App.powerups['5050'] <= 0){ showToast('No 50:50 available'); return; }
-  const q = App.questions[App.currentIndex];
-  const wrongs = [0,1,2,3].filter(i=>i!==q.ans);
-  const remove = shuffleArray(wrongs).slice(0,2);
-  const opts = Array.from(document.querySelectorAll('#options .option'));
-  remove.forEach(i => { opts[i].classList.add('faded'); opts[i].style.pointerEvents='none'; });
-  App.powerups['5050']--; setPowerupDisplays(); playSound('#powerSound'); showToast('50:50 used',1200);
+/* ============================================================
+   DROPDOWN UPDATE
+============================================================ */
+function updateDropdown(max) {
+  const dr = $("#numQuestions");
+  dr.innerHTML = "";
+  for (let i = max; i >= 1; i--) {
+    const o = document.createElement("option");
+    o.textContent = i;
+    o.value = i;
+    dr.appendChild(o);
+  }
 }
-function useHint(){
-  if(App.powerups.hint <= 0){ showToast('No hints'); return; }
+
+/* ============================================================
+   POWERUPS
+============================================================ */
+$("#pu5050").onclick = () => {
+  if (App.powerups["5050"] <= 0) return toast("No 50:50 left");
+
   const q = App.questions[App.currentIndex];
-  $('#hint').textContent = `💡 Hint: ${q.hint || 'Review the context'}`; $('#hint').style.display = 'block';
-  App.powerups.hint--; setPowerupDisplays(); playSound('#powerSound');
-}
-function useSkip(){
-  if(App.powerups.skip <= 0){ showToast('No skips'); return; }
+  const opts = [...$("#options").children];
+  const wrongs = opts.map((o,i)=>i).filter(i=>i!==q.ans);
+
+  shuffle(wrongs);
+  wrongs.slice(0,2).forEach(i=>{
+    opts[i].classList.add("fade");
+    opts[i].onclick = null;
+  });
+
+  App.powerups["5050"]--;
+  play("#powerSound");
+  updateStats();
+};
+
+$("#puHint").onclick = () => {
+  if (App.powerups.hint <= 0) return toast("No hints left");
+  $("#hint").textContent = "💡 " + App.questions[App.currentIndex].hint;
+  $("#hint").classList.remove("hidden");
+  App.powerups.hint--;
+  updateStats();
+};
+
+$("#puSkip").onclick = ()=> {
+  if (App.powerups.skip <= 0) return toast("No skip left");
   App.skipped.add(App.currentIndex);
-  App.powerups.skip--; setPowerupDisplays(); playSound('#powerSound');
-  loadQuestion(nextUnansweredOrNext());
-}
-$('#pu5050').addEventListener('click', use5050);
-$('#puHint').addEventListener('click', useHint);
-$('#puSkip').addEventListener('click', useSkip);
+  App.powerups.skip--;
+  updateStats();
+  loadQuestion(Math.min(App.currentIndex+1, App.questions.length-1));
+};
 
-/* ---------------------------
-   Shop
---------------------------- */
-$('#openShopBtn')?.addEventListener?.('click', ()=> $('#shopModal').classList.add('show'));
-$('#closeShop')?.addEventListener?.('click', ()=> $('#shopModal').classList.remove('show'));
-document.querySelectorAll('.shopBuy').forEach(btn=>{
-  btn.addEventListener('click', ()=> {
-    const price = parseInt(btn.dataset.price), power = btn.dataset.power;
-    if(App.coins < price){ showToast('Not enough coins'); return; }
-    App.coins -= price; App.powerups[power] = (App.powerups[power]||0) + 1;
-    setPowerupDisplays(); $('#shopModal').classList.remove('show'); playSound('#coinSound'); showToast('Purchase successful',1200);
-  });
-});
+/* ============================================================
+   SAVING QUIZZES
+============================================================ */
+$("#saveQuizBtn").onclick = ()=>{
+  if (!App.questions.length) return toast("No quiz to save");
+  saveQuiz();
+};
 
-/* ---------------------------
-   Timers
---------------------------- */
-function startTimers(){
-  stopAllTimers();
-  if(App.timers.mode === 'none') return;
-  if(App.timers.mode === 'quiz'){
-    App.timers.quizRemaining = App.timers.quiz;
-    App.timers.interval = setInterval(()=>{
-      App.timers.quizRemaining--;
-      $('#timerVal').textContent = formatTime(App.timers.quizRemaining);
-      if(App.timers.quizRemaining <= 0){ clearInterval(App.timers.interval); submitQuiz(); }
-    },1000);
-  } else if(App.timers.mode === 'question'){
-    resetQuestionTimer();
-  }
-}
-function resetQuestionTimer(){
-  if(App.timers.mode !== 'question') return;
-  App.timers.questionRemaining = App.timers.question;
-  $('#timerVal').textContent = formatTime(App.timers.questionRemaining);
-  if(App.timers.interval) clearInterval(App.timers.interval);
-  App.timers.interval = setInterval(()=>{
-    App.timers.questionRemaining--;
-    $('#timerVal').textContent = formatTime(App.timers.questionRemaining);
-    if(App.timers.questionRemaining <= 0){
-      clearInterval(App.timers.interval);
-      // auto-mark as null (incorrect) and move next
-      App.userAnswers[App.currentIndex] = null;
-      loadQuestion(nextUnansweredOrNext());
-    }
-  },1000);
-}
-function stopAllTimers(){ if(App.timers.interval) clearInterval(App.timers.interval); App.timers.interval = null; $('#timerVal').textContent = '—'; }
-function formatTime(sec){ if(sec==null) return '—'; const m=Math.floor(sec/60); const s=sec%60; return `${m}:${s.toString().padStart(2,'0')}`; }
+function saveQuiz() {
+  const data = {
+    id: Date.now(),
+    questions: App.questions,
+    created: new Date().toISOString()
+  };
 
-/* apply timer UI */
-document.querySelectorAll('.timeropt').forEach(btn=>{
-  btn.addEventListener('click', ()=> {
-    document.querySelectorAll('.timeropt').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    App.timers.mode = btn.dataset.mode;
-  });
-});
-$('#applyTimers')?.addEventListener('click', ()=>{
-  App.timers.quiz = Math.max(10, parseInt($('#quizTimerInput').value) || 300);
-  App.timers.question = Math.max(5, parseInt($('#questionTimerInput').value) || 30);
-  startTimers(); showToast('Timers applied',1200);
-});
+  let list = JSON.parse(localStorage.getItem("quizpro_saved") || "[]");
+  list.push(data);
+  localStorage.setItem("quizpro_saved", JSON.stringify(list));
 
-/* ---------------------------
-   Controls: next, prev, submit
---------------------------- */
-$('#nextBtn').addEventListener('click', ()=> loadQuestion(Math.min(App.currentIndex+1, App.questions.length-1)));
-$('#prevBtn').addEventListener('click', ()=> loadQuestion(Math.max(App.currentIndex-1,0)));
-$('#submitBtn').addEventListener('click', ()=>{
-  if(!finishable()){
-    if(!confirm('Some items are unanswered. Submit anyway?')) return;
-  }
-  submitQuiz();
-});
-
-/* ---------------------------
-   Save/load quizzes (localStorage)
---------------------------- */
-function saveQuizLocally(title, category){
-  const data = { id:'q_'+Date.now(), title, category, file:App.pdfFileName, questions:App.questions, created:new Date().toISOString() };
-  const list = JSON.parse(localStorage.getItem('pdf_quizzes')||'[]');
-  list.push(data); localStorage.setItem('pdf_quizzes', JSON.stringify(list));
-  showToast('Quiz saved',1200); $('#saveModal').classList.remove('show'); loadSavedQuizzes();
-}
-function loadSavedQuizzes(){
-  const list = JSON.parse(localStorage.getItem('pdf_quizzes')||'[]');
-  const container = $('#quizList'); container.innerHTML = '';
-  if(list.length===0){ container.innerHTML = '<div style="color:var(--muted)">No saved quizzes</div>'; return; }
-  list.forEach(s=>{
-    const card = create('div'); card.style.padding='10px'; card.style.border='1px solid #eef2ff'; card.style.borderRadius='8px'; card.style.marginBottom='8px';
-    card.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><div><strong>${s.title}</strong><div style="font-size:0.9rem;color:var(--muted)">${s.category} • ${new Date(s.created).toLocaleString()}</div></div>
-      <div style="display:flex;flex-direction:column;gap:6px"><button class="tab loadSavedBtn" data-id="${s.id}" style="padding:6px">Load</button><button class="tab delSavedBtn" data-id="${s.id}" style="padding:6px">Delete</button></div></div>`;
-    container.appendChild(card);
-  });
-  document.querySelectorAll('.loadSavedBtn').forEach(b=> b.addEventListener('click', ()=> {
-    const id = b.dataset.id; const list = JSON.parse(localStorage.getItem('pdf_quizzes')||'[]'); const found = list.find(x=>x.id===id);
-    if(found){ startQuiz(found.questions); }
-  }));
-  document.querySelectorAll('.delSavedBtn').forEach(b=> b.addEventListener('click', ()=> {
-    if(!confirm('Delete this saved quiz?')) return;
-    const id = b.dataset.id; let list = JSON.parse(localStorage.getItem('pdf_quizzes')||'[]'); list = list.filter(x=>x.id!==id); localStorage.setItem('pdf_quizzes', JSON.stringify(list)); loadSavedQuizzes(); showToast('Deleted',1200);
-  }));
-}
-$('#saveQuizBtn').addEventListener('click', ()=> {
-  if(!App.questions || App.questions.length===0){ showToast('No quiz to save'); return; }
-  $('#quizTitle').value = App.pdfFileName ? App.pdfFileName.replace('.pdf','') : 'My Quiz'; $('#saveModal').classList.add('show');
-});
-$('#closeSave').addEventListener('click', ()=> $('#saveModal').classList.remove('show'));
-$('#saveToLocal').addEventListener('click', ()=> {
-  const title = $('#quizTitle').value.trim() || 'Untitled'; const category = $('#quizCategory').value || 'General'; saveQuizLocally(title, category);
-});
-$('#clearStorageBtn').addEventListener('click', ()=> { if(confirm('Clear all saved quizzes?')){ localStorage.removeItem('pdf_quizzes'); loadSavedQuizzes(); showToast('Cleared storage'); }});
-$('#exportAllBtn').addEventListener('click', ()=> {
-  const data = { file: App.pdfFileName, seeds: App.seeds, exportedAt: new Date().toISOString() };
-  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'quiz-export.json'; a.click(); URL.revokeObjectURL(a.href); showToast('Exported',1200);
-});
-
-/* ---------------------------
-   UI wiring for generation
---------------------------- */
-$('#genBtn').addEventListener('click', ()=> {
-  // ensure seeds built
-  if(!App.seeds || App.seeds.length === 0){ buildSeedsFromText(); if(App.seeds.length === 0){ showToast('No seeds found'); return; } }
-  // get user desired count and focus keywords
-  const chosen = parseInt($('#numQuestions').value) || 10;
-  const focus = ($('#focusAreas').value || '').split(',').map(s=>s.trim()).filter(Boolean);
-  const difficulty = $('#difficulty').value || 'mixed';
-
-  // If fewer seeds than requested, show dropdown and allow user to choose from available
-  const maxAvailable = App.seeds.length;
-  if(maxAvailable < chosen){
-    // rebuild dropdown to proper max (descending)
-    rebuildNumDropdown(maxAvailable);
-    showToast(`Only ${maxAvailable} items available — dropdown adjusted`,2000);
-    return;
-  }
-
-  // generate exactly chosen number
-  const questions = generateQuestionsFromSeeds(chosen, focus, difficulty);
-  if(!questions || questions.length === 0){ showToast('Could not build questions from the document'); return; }
-
-  // ensure we have exactly chosen amount (if generator returned fewer, inform and adjust)
-  if(questions.length < chosen){
-    rebuildNumDropdown(questions.length);
-    showToast(`Only ${questions.length} items could be formed — dropdown adjusted`,2500);
-  }
-
-  // start quiz with generated questions
-  startQuiz(questions);
-  setPowerupDisplays();
-});
-
-$('#buildStudyBtn').addEventListener('click', ()=> {
-  if(!App.pdfText){ showToast('Upload PDF first'); return; }
-  // simple chunk display
-  const paras = App.pdfText.split(/\n{1,}/).map(p=>p.trim()).filter(Boolean);
-  const container = create('div');
-  paras.slice(0,10).forEach((p,i)=>{ const el = create('div'); el.innerHTML = `<h4>Section ${i+1}</h4><p style="color:var(--muted)">${p.slice(0,400)}</p>`; container.appendChild(el); });
-  // show modal with content
-  const md = $('#saveModal'); // reuse modal as quick viewer
-  md.querySelector('.modal-card')?.remove?.();
-  // create quick modal
-  const modal = document.createElement('div'); modal.className='modal show'; modal.innerHTML = `<div class="modal-card"><div style="display:flex;justify-content:space-between;align-items:center"><h3>Study Preview</h3><button id="closeStudy" class="tab">Close</button></div><div style="max-height:60vh;overflow:auto;margin-top:8px">${paras.slice(0,8).map((p,i)=>`<h4>Section ${i+1}</h4><p style="color:var(--muted)">${p.slice(0,500)}</p>`).join('')}</div></div>`; document.body.appendChild(modal);
-  modal.querySelector('#closeStudy').addEventListener('click', ()=> modal.remove());
-});
-
-/* ---------------------------
-   Retry & export results
---------------------------- */
-$('#retryAll').addEventListener('click', ()=> {
-  if(!App.questions || App.questions.length===0) return;
-  startQuiz(App.questions.map(q=>({...q})));
-});
-$('#retryWrong').addEventListener('click', ()=> {
-  if(!App.questions) return;
-  const wrongs = App.questions.filter((q,i)=> App.userAnswers[i] !== q.ans);
-  if(wrongs.length===0){ showToast('All correct — no wrong items!'); return; }
-  startQuiz(wrongs);
-});
-$('#exportResults').addEventListener('click', ()=> {
-  const data = { score: App.score, correct: App.correctCount, total: App.questions.length, answers: App.userAnswers, exportedAt: new Date().toISOString() };
-  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'quiz-results.json'; a.click(); URL.revokeObjectURL(a.href); showToast('Results exported',1200);
-});
-
-/* ---------------------------
-   Confetti (lightweight)
---------------------------- */
-function confettiBurst(){
-  const container = $('#confetti');
-  const colors = ['#4361ee','#3a0ca3','#4cc9f0','#f72585','#fca311'];
-  for(let i=0;i<40;i++){
-    const el = document.createElement('div'); el.style.position='absolute'; el.style.top='-10%'; el.style.left=(Math.random()*100)+'%';
-    el.style.width='8px'; el.style.height='12px'; el.style.background=colors[Math.floor(Math.random()*colors.length)];
-    el.style.opacity='0.95'; el.style.transform=`rotate(${Math.random()*360}deg)`; el.style.borderRadius='2px';
-    el.style.transition='transform 2.6s linear, top 2.6s linear, opacity 2.6s linear';
-    container.appendChild(el);
-    setTimeout(()=>{ el.style.top=(100+Math.random()*60)+'vh'; el.style.transform=`translateY(0) rotate(${Math.random()*1080}deg)`; el.style.opacity='0'; }, 30 + i*10);
-    setTimeout(()=> el.remove(), 3000 + Math.random()*600);
-  }
+  toast("Quiz saved");
+  loadSaved();
 }
 
-/* ---------------------------
-   Small UI updates & init
---------------------------- */
-function updateStats(){ setPowerupDisplays(); $('#correctCount').textContent = App.correctCount; $('#streak').textContent = App.streak; $('#currentQ').textContent = (App.currentIndex+1) || '—'; }
-function setPowerupDisplays(){ $('#count5050').textContent = App.powerups['5050']; $('#countHint').textContent = App.powerups['hint']; $('#countSkip').textContent = App.powerups['skip']; $('#coins').textContent = App.coins; $('#coinsTop').textContent = App.coins; $('#shopCoins').textContent = App.coins; $('#score').textContent = App.score; }
+$("#clearStorageBtn").onclick = ()=> {
+  localStorage.removeItem("quizpro_saved");
+  toast("Storage cleared");
+  loadSaved();
+};
 
-function init(){
-  // wire tabs
-  document.querySelectorAll('.tab[data-tab]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      document.querySelectorAll('.tab[data-tab]').forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active');
-      const tab = btn.dataset.tab;
-      $('#uploadCard').style.display = tab==='upload' ? 'block' : 'none';
-      $('#configureCard').style.display = tab==='configure' ? 'block' : 'none';
-      $('#quizCard').style.display = tab==='quiz' ? 'block' : 'none';
-      $('#resultsCard').style.display = tab==='results' ? 'block' : 'none';
-      $('#savedCard').style.display = tab==='saved' ? 'block' : 'none';
-    });
+function loadSaved() {
+  const list = JSON.parse(localStorage.getItem("quizpro_saved") || "[]");
+  const box = $("#quizList");
+  box.innerHTML = "";
+  if (!list.length) return box.innerHTML = `<div class="text-gray-500">No saved quizzes</div>`;
+
+  list.forEach(q=>{
+    const div = document.createElement("div");
+    div.className = "p-3 border rounded-lg bg-gray-50";
+
+    div.innerHTML =
+      `<div class="flex justify-between items-center">
+        <div>
+          <b>Saved Quiz</b>
+          <div class="text-xs text-gray-500">${new Date(q.created).toLocaleString()}</div>
+        </div>
+        <div class="flex gap-2">
+          <button class="px-3 py-1 bg-blue-100 rounded load" data-id="${q.id}">Load</button>
+          <button class="px-3 py-1 bg-red-100 rounded del" data-id="${q.id}">Delete</button>
+        </div>
+      </div>`;
+
+    box.appendChild(div);
   });
 
-  // load saved quizzes
-  loadSavedQuizzes();
-  setPowerupDisplays();
+  document.querySelectorAll(".load").forEach(b=>{
+    b.onclick = ()=>{
+      const list = JSON.parse(localStorage.getItem("quizpro_saved")||"[]");
+      const found = list.find(x=>x.id==b.dataset.id);
+      if (!found) return;
+      App.questions = found.questions;
+      App.userAnswers = {};
+      loadQuestion(0);
+      $("#quizCard").classList.remove("hidden");
+      toast("Loaded");
+    };
+  });
 
-  // bind save modal close
-  $('#closeSave')?.addEventListener('click', ()=> $('#saveModal').classList.remove('show'));
-  $('#saveModal .modal-card')?.addEventListener('click', e=> e.stopPropagation());
-  document.querySelectorAll('.modal').forEach(m=> m.addEventListener('click', ()=> m.classList.remove('show')));
-
-  // initial seeds
-  rebuildNumDropdown(10);
+  document.querySelectorAll(".del").forEach(b=>{
+    b.onclick = ()=>{
+      let list = JSON.parse(localStorage.getItem("quizpro_saved")||"[]");
+      list = list.filter(x=>x.id!=b.dataset.id);
+      localStorage.setItem("quizpro_saved", JSON.stringify(list));
+      toast("Deleted");
+      loadSaved();
+    };
+  });
 }
-init();
 
+loadSaved();
 </script>
+
 </body>
 </html>
