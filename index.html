@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>QuizPro – PDF to Quiz Generator</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>QuizPro — PDF to Quiz (Full Build)</title>
 
 <!-- TailwindCSS -->
 <script src="https://cdn.tailwindcss.com"></script>
@@ -15,225 +15,321 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
 <style>
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-thumb { background: #93c5fd; border-radius: 5px; }
-.fade { opacity: .4; pointer-events: none; }
-.option-correct { border-color: #22c55e !important; background: #dcfce7 !important; }
-.option-wrong { border-color: #ef4444 !important; background: #fee2e2 !important; }
+/* small custom tweaks */
+.fade { opacity:.28; pointer-events:none; }
+.option-correct { border-color:#16a34a !important; background:#dcfce7 !important; }
+.option-wrong { border-color:#ef4444 !important; background:#fee2e2 !important; }
+::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:#93c5fd;border-radius:6px}
 </style>
+
+<!--
+  External-browser / in-app detection + redirect/fallback
+  Strategy (Option C - best):
+  1) If we detect common in-app browser UA (Facebook, Instagram, Messenger),
+     attempt to open same URL in a new tab with query param ?openExternalBrowser=1.
+  2) If that doesn't succeed or param is present, show an instruction overlay
+     prompting the user to "Open in external browser" with a big link. This forces
+     the user to open it normally.
+-->
+<script>
+(function(){
+  try {
+    const ua = navigator.userAgent || '';
+    const inApp = /FBAN|FBAV|Instagram|Messenger|Line\//i.test(ua);
+    const params = new URLSearchParams(location.search);
+    // If in-app and not yet tried, attempt to open externally
+    if (inApp && !params.has('openExternalBrowser')) {
+      // try to open in new tab/window (best-effort)
+      const newUrl = location.href + (location.search ? '&' : '?') + 'openExternalBrowser=1';
+      // try window.open — often blocked, but may trigger external prompt in some apps
+      try { window.open(newUrl, '_blank'); } catch(e){ /*ignore*/ }
+      // also try top.location where allowed
+      try { top.location.href = newUrl; return; } catch(e){ /*ignore*/ }
+      // fallback continues with page load and will display overlay below
+    }
+  } catch(e){}
+})();
+</script>
+
 </head>
+<body class="bg-gray-50 text-gray-800">
 
-<body class="bg-gray-100 text-gray-800">
+<!-- In-app overlay (hidden by default). If we detect in-app and external redirect didn't work,
+     we show this to instruct the user to open externally. -->
+<div id="inAppOverlay" class="fixed inset-0 bg-white z-50 flex items-center justify-center p-6 hidden">
+  <div class="max-w-xl text-center">
+    <h2 class="text-2xl font-bold mb-4">Open in your browser</h2>
+    <p class="mb-4 text-gray-600">This page works best in your device's browser (Chrome, Safari). Please open it in your external browser for full functionality.</p>
+    <div class="space-y-3">
+      <a id="openExternalLink" class="inline-block w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold" target="_blank" rel="noreferrer">Open in external browser</a>
+      <button id="dismissInApp" class="w-full px-4 py-3 border rounded-lg">Continue anyway</button>
+    </div>
+  </div>
+</div>
 
-<!-- HEADER -->
-<header class="w-full bg-white shadow sticky top-0 z-50">
-  <div class="max-w-6xl mx-auto flex items-center justify-between p-4">
-    <h1 class="text-2xl font-bold text-blue-600 flex items-center gap-2">
-      <i class="fa-solid fa-bolt"></i> QuizPro
-    </h1>
+<!-- Header -->
+<header class="bg-white shadow sticky top-0 z-40">
+  <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="bg-gradient-to-tr from-blue-600 to-purple-600 text-white rounded-lg p-3">
+        <i class="fa-solid fa-bolt"></i>
+      </div>
+      <div>
+        <div class="text-lg font-bold">QuizPro — PDF to Quiz</div>
+        <div class="text-sm text-gray-500">All features included • Responsive • Smart questions</div>
+      </div>
+    </div>
 
-    <div class="flex items-center space-x-4">
-      <div class="flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-full border border-blue-200">
-        <i class="fa-solid fa-coins text-yellow-500"></i>
-        <span id="coinsTop" class="font-semibold">100</span>
+    <div class="flex items-center gap-3">
+      <div class="px-3 py-2 bg-white rounded-full border flex items-center gap-2">
+        <i class="fa-solid fa-coins text-yellow-500"></i><span id="coinsTop">100</span>
       </div>
     </div>
   </div>
 </header>
 
-<!-- MAIN WRAPPER -->
-<div class="max-w-6xl mx-auto p-4 flex flex-col md:flex-row gap-4">
+<!-- Main -->
+<main class="max-w-6xl mx-auto p-4 grid grid-cols-1 md:grid-cols-[320px_1fr] gap-4">
 
-  <!-- SIDEBAR -->
-  <aside class="w-full md:w-64 bg-white rounded-xl shadow p-4 h-fit sticky top-20">
-    <h2 class="font-bold text-lg mb-2">Navigation</h2>
+  <!-- Sidebar -->
+  <aside class="bg-white rounded-xl shadow p-4 sticky top-24 h-fit">
+    <h3 class="font-semibold mb-2">Navigator</h3>
     <div id="questionGrid" class="flex flex-wrap gap-2"></div>
 
     <div class="mt-4 space-y-2">
-      <button id="saveQuizBtn" class="w-full py-2 bg-blue-100 hover:bg-blue-200 rounded-lg font-semibold">
-        <i class="fa-solid fa-save"></i> Save Quiz
-      </button>
-      <button id="exportAllBtn" class="w-full py-2 bg-gray-100 hover:bg-gray-200 rounded-lg font-semibold">
-        <i class="fa-solid fa-download"></i> Export Seeds
-      </button>
-      <button id="clearStorageBtn" class="w-full py-2 bg-red-100 hover:bg-red-200 rounded-lg font-semibold">
-        <i class="fa-solid fa-trash"></i> Clear Saved
-      </button>
+      <button id="saveQuizBtn" class="w-full px-3 py-2 bg-blue-600 text-white rounded-lg"><i class="fa-solid fa-save"></i> Save Quiz</button>
+      <button id="exportAllBtn" class="w-full px-3 py-2 bg-gray-100 rounded-lg"><i class="fa-solid fa-download"></i> Export Seeds</button>
+      <button id="clearStorageBtn" class="w-full px-3 py-2 bg-red-100 rounded-lg"><i class="fa-solid fa-trash"></i> Clear Saved</button>
+    </div>
+
+    <div class="mt-4 text-sm text-gray-500">
+      Stored locally in your browser. Use Export to download seeds or results.
     </div>
   </aside>
 
-  <!-- MAIN -->
-  <section class="flex-1 space-y-6">
+  <!-- Main content -->
+  <section class="space-y-4">
 
-    <!-- STATS -->
-    <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
-      <div class="bg-white p-4 rounded-xl shadow text-center">
-        <div class="text-xl font-bold" id="currentQ">–</div>
-        <div class="text-gray-500 text-sm">Current</div>
+    <!-- Stats -->
+    <div class="grid grid-cols-2 sm:grid-cols-6 gap-3">
+      <div class="bg-white p-3 rounded-lg shadow text-center">
+        <div class="text-lg font-bold" id="currentQ">–</div>
+        <div class="text-xs text-gray-500">Current</div>
       </div>
-
-      <div class="bg-white p-4 rounded-xl shadow text-center">
-        <div class="text-xl font-bold" id="score">0</div>
-        <div class="text-gray-500 text-sm">Score</div>
+      <div class="bg-white p-3 rounded-lg shadow text-center">
+        <div class="text-lg font-bold" id="score">0</div>
+        <div class="text-xs text-gray-500">Score</div>
       </div>
-
-      <div class="bg-white p-4 rounded-xl shadow text-center">
-        <div class="text-xl font-bold" id="correctCount">0</div>
-        <div class="text-gray-500 text-sm">Correct</div>
+      <div class="bg-white p-3 rounded-lg shadow text-center">
+        <div class="text-lg font-bold" id="correctCount">0</div>
+        <div class="text-xs text-gray-500">Correct</div>
       </div>
-
-      <div class="bg-white p-4 rounded-xl shadow text-center">
-        <div class="text-xl font-bold" id="streak">0</div>
-        <div class="text-gray-500 text-sm">Streak</div>
+      <div class="bg-white p-3 rounded-lg shadow text-center">
+        <div class="text-lg font-bold" id="streak">0</div>
+        <div class="text-xs text-gray-500">Streak</div>
       </div>
-
-      <div class="bg-white p-4 rounded-xl shadow text-center">
-        <div class="text-xl font-bold" id="coins">100</div>
-        <div class="text-gray-500 text-sm">Coins</div>
+      <div class="bg-white p-3 rounded-lg shadow text-center">
+        <div class="text-lg font-bold" id="coins">100</div>
+        <div class="text-xs text-gray-500">Coins</div>
       </div>
-
-      <div class="bg-white p-4 rounded-xl shadow text-center">
-        <div class="text-xl font-bold" id="timerVal">–</div>
-        <div class="text-gray-500 text-sm">Timer</div>
+      <div class="bg-white p-3 rounded-lg shadow text-center">
+        <div class="text-lg font-bold" id="timerVal">–</div>
+        <div class="text-xs text-gray-500">Timer</div>
       </div>
     </div>
 
-    <!-- UPLOAD -->
-    <div id="uploadCard" class="bg-white rounded-xl shadow p-5">
-      <h2 class="text-xl font-bold mb-1">Upload PDF</h2>
-      <p class="text-gray-500 mb-4">Extract text to generate optimized quiz questions.</p>
+    <!-- Upload Card -->
+    <div id="uploadCard" class="bg-white rounded-xl shadow p-4">
+      <div class="flex items-start gap-4">
+        <div class="p-3 rounded-lg bg-blue-50"><i class="fa-solid fa-file-pdf text-2xl text-blue-600"></i></div>
+        <div class="flex-1">
+          <h2 class="text-lg font-semibold">Upload PDF</h2>
+          <p class="text-sm text-gray-500">Drop a PDF or click Browse. We'll extract text and create question seeds.</p>
 
-      <div id="dropArea" class="border-2 border-dashed border-blue-300 bg-blue-50 rounded-xl p-6 text-center cursor-pointer">
-        <i class="fa-solid fa-file-pdf text-4xl text-blue-600"></i>
-        <h3 class="font-semibold mt-2">Drop PDF here</h3>
-        <button id="browseBtn" class="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg">Browse</button>
-        <input type="file" id="pdfInput" accept=".pdf" class="hidden" />
-      </div>
+          <div id="dropArea" class="mt-3 border-2 border-dashed border-blue-200 rounded-xl p-4 text-center cursor-pointer">
+            <div class="text-sm text-gray-600">Drop PDF here</div>
+            <div class="mt-3">
+              <button id="browseBtn" class="px-4 py-2 bg-blue-600 text-white rounded-md">Browse</button>
+              <input id="pdfInput" type="file" accept=".pdf" class="hidden" />
+            </div>
+          </div>
 
-      <div id="fileInfo" class="hidden mt-3 p-3 bg-blue-100 rounded-lg flex justify-between">
-        <span id="fileName" class="font-bold"></span>
-        <span id="fileSize"></span>
-      </div>
+          <div id="fileInfo" class="hidden mt-3 p-3 rounded-md bg-blue-50 flex justify-between items-center">
+            <div class="font-medium" id="fileName"></div>
+            <div class="text-sm text-gray-500" id="fileSize"></div>
+          </div>
 
-      <div id="progressWrapper" class="hidden mt-3">
-        <div class="h-2 w-full bg-gray-200 rounded">
-          <div id="progressBar" class="h-full bg-blue-500 rounded" style="width:0%"></div>
+          <div id="progressWrapper" class="hidden mt-3">
+            <div class="w-full h-2 bg-gray-200 rounded">
+              <div id="progressBar" class="h-2 bg-blue-600 rounded" style="width:0%"></div>
+            </div>
+            <div id="progressText" class="text-xs text-gray-500 mt-2">Processing…</div>
+          </div>
         </div>
-        <div id="progressText" class="text-sm text-gray-500 mt-1">Processing…</div>
       </div>
     </div>
 
-    <!-- CONFIG -->
-    <div id="configureCard" class="bg-white rounded-xl shadow p-5">
-      <h2 class="text-xl font-bold mb-3">Configure</h2>
+    <!-- Configure Card -->
+    <div id="configureCard" class="bg-white rounded-xl shadow p-4">
+      <h3 class="font-semibold">Configure Generation</h3>
+      <p class="text-sm text-gray-500">Choose how many questions you'd like; the dropdown will adapt to the maximum available from the PDF.</p>
 
-      <div class="grid md:grid-cols-3 gap-4">
-
+      <div class="grid md:grid-cols-3 gap-3 mt-3">
         <div>
-          <label class="font-semibold">Questions</label>
-          <select id="numQuestions" class="w-full mt-1 p-2 border rounded-lg">
+          <label class="text-sm font-medium">Questions</label>
+          <select id="numQuestions" class="mt-1 w-full border rounded-md p-2">
             <option>5</option><option selected>10</option><option>20</option>
           </select>
         </div>
 
         <div>
-          <label class="font-semibold">Difficulty</label>
-          <select id="difficulty" class="w-full mt-1 p-2 border rounded-lg">
-            <option>mixed</option><option>basic</option>
-            <option selected>intermediate</option><option>advanced</option>
+          <label class="text-sm font-medium">Difficulty</label>
+          <select id="difficulty" class="mt-1 w-full border rounded-md p-2">
+            <option value="mixed">Mixed</option><option value="basic">Basic</option>
+            <option value="intermediate" selected>Intermediate</option><option value="advanced">Advanced</option>
           </select>
         </div>
 
         <div>
-          <label class="font-semibold">Focus Keywords</label>
-          <input id="focusAreas" class="w-full mt-1 p-2 border rounded-lg" placeholder="comma separated" />
+          <label class="text-sm font-medium">Focus keywords (comma)</label>
+          <input id="focusAreas" class="mt-1 w-full border rounded-md p-2" placeholder="e.g., biology, taxation" />
         </div>
-
       </div>
 
-      <div class="flex items-center gap-4 mt-4">
-        <button id="genBtn" class="px-5 py-2 bg-blue-600 text-white rounded-lg shadow">
-          <i class="fa-solid fa-wand-magic-sparkles"></i> Generate
-        </button>
-        <div class="text-gray-500">Seeds: <b id="seedCount">0</b></div>
+      <div class="flex items-center gap-3 mt-4">
+        <button id="genBtn" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-md">Generate Questions</button>
+        <button id="buildStudyBtn" class="px-4 py-2 bg-gray-100 rounded-md">Build Study</button>
+        <div class="ml-auto text-sm text-gray-600">Available seeds: <span id="seedCount">0</span></div>
       </div>
     </div>
 
-    <!-- QUIZ -->
-    <div id="quizCard" class="hidden bg-white rounded-xl shadow p-5">
-
-      <div class="flex items-center justify-between">
+    <!-- Quiz Card -->
+    <div id="quizCard" class="bg-white rounded-xl shadow p-4 hidden">
+      <div class="flex justify-between items-start">
         <div>
-          <h3 class="font-bold" id="qTitle">Question</h3>
-          <p class="text-gray-500 text-sm" id="qIndex">0 / 0</p>
+          <h3 class="text-lg font-bold" id="qTitle">Question</h3>
+          <div class="text-sm text-gray-500" id="qIndex">0 / 0</div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <div class="text-sm text-gray-500">Timers:</div>
+          <select id="timerMode" class="border rounded-md p-1">
+            <option value="none">None</option>
+            <option value="question" selected>Per Q</option>
+            <option value="quiz">Quiz</option>
+          </select>
+          <input id="questionTimerInput" type="number" value="30" class="w-20 border rounded-md p-1 ml-2" />
+          <input id="quizTimerInput" type="number" value="300" class="w-24 border rounded-md p-1 ml-2" />
+          <button id="applyTimers" class="px-2 py-1 bg-gray-100 rounded-md">Apply</button>
         </div>
       </div>
 
-      <!-- Powerups -->
+      <!-- powerups -->
       <div class="flex gap-3 mt-4">
-        <button id="pu5050" class="px-3 py-2 bg-gray-100 border rounded-xl">
-          50:50 <span id="count5050" class="font-bold">3</span>
-        </button>
-        <button id="puHint" class="px-3 py-2 bg-gray-100 border rounded-xl">
-          <i class="fa-solid fa-lightbulb"></i> <span id="countHint">3</span>
-        </button>
-        <button id="puSkip" class="px-3 py-2 bg-gray-100 border rounded-xl">
-          Skip <span id="countSkip">2</span>
-        </button>
+        <button id="pu5050" class="px-3 py-2 bg-gray-100 rounded-md">50:50 <span id="count5050">3</span></button>
+        <button id="puHint" class="px-3 py-2 bg-gray-100 rounded-md"><i class="fa-solid fa-lightbulb"></i> <span id="countHint">3</span></button>
+        <button id="puSkip" class="px-3 py-2 bg-gray-100 rounded-md">Skip <span id="countSkip">2</span></button>
       </div>
 
-      <div id="qText" class="mt-5 text-lg font-semibold"></div>
-
+      <div id="qText" class="mt-4 text-lg font-semibold"></div>
       <div id="options" class="grid gap-3 mt-4"></div>
-      <div id="hint" class="hidden mt-3 p-3 bg-yellow-50 border rounded-lg text-sm"></div>
-
-      <div class="flex gap-3 mt-5">
-        <button id="prevBtn" class="px-4 py-2 bg-gray-200 rounded-lg">Prev</button>
-        <button id="nextBtn" class="px-4 py-2 bg-gray-200 rounded-lg">Next</button>
-        <button id="submitBtn" class="ml-auto px-5 py-2 bg-blue-600 text-white rounded-lg">Submit</button>
-      </div>
-
-    </div>
-
-    <!-- RESULTS -->
-    <div id="resultsCard" class="hidden bg-white rounded-xl shadow p-5">
-      <h2 class="text-xl font-bold mb-3">Results</h2>
-      <div id="resultsSummary" class="mb-4"></div>
-      <div id="resultsList" class="space-y-3"></div>
+      <div id="hint" class="hidden mt-3 p-3 bg-yellow-50 border rounded-md"></div>
 
       <div class="flex gap-3 mt-4">
-        <button id="retryWrong" class="px-4 py-2 bg-red-100 rounded-lg">Retry Wrong</button>
-        <button id="retryAll" class="px-4 py-2 bg-blue-100 rounded-lg">Retry All</button>
-        <button id="exportResults" class="px-4 py-2 bg-gray-200 rounded-lg">Export</button>
+        <button id="prevBtn" class="px-3 py-2 bg-gray-100 rounded-md">Prev</button>
+        <button id="nextBtn" class="px-3 py-2 bg-gray-100 rounded-md">Next</button>
+        <button id="submitBtn" class="ml-auto px-4 py-2 bg-blue-600 text-white rounded-md">Submit</button>
       </div>
     </div>
 
-    <!-- SAVED -->
-    <div id="savedCard" class="hidden bg-white rounded-xl shadow p-5">
-      <h2 class="text-xl font-bold mb-3">Saved Quizzes</h2>
-      <div id="quizList" class="space-y-3"></div>
+    <!-- Results -->
+    <div id="resultsCard" class="bg-white rounded-xl shadow p-4 hidden">
+      <h3 class="text-lg font-bold">Results</h3>
+      <div id="resultsSummary" class="mt-2"></div>
+      <div id="resultsList" class="mt-3 space-y-2"></div>
+
+      <div class="flex gap-3 mt-4">
+        <button id="retryWrong" class="px-3 py-2 bg-red-100 rounded-md">Retry Wrong</button>
+        <button id="retryAll" class="px-3 py-2 bg-blue-100 rounded-md">Retry All</button>
+        <button id="exportResults" class="px-3 py-2 bg-gray-100 rounded-md">Export Results</button>
+      </div>
+    </div>
+
+    <!-- Saved -->
+    <div id="savedCard" class="bg-white rounded-xl shadow p-4 hidden">
+      <h3 class="text-lg font-bold">Saved Quizzes</h3>
+      <div id="quizList" class="mt-3 space-y-3"></div>
     </div>
 
   </section>
+</main>
+
+<!-- shop modal, save modal simplified (kept) -->
+<div id="shopModal" class="hidden fixed inset-0 bg-black bg-opacity-40 z-50 items-center justify-center p-4">
+  <div class="bg-white rounded-lg p-4 max-w-md mx-auto">
+    <div class="flex justify-between items-center">
+      <h4 class="font-semibold">Power-up Store</h4>
+      <button id="closeShop" class="text-gray-500">Close</button>
+    </div>
+    <div class="mt-3 grid grid-cols-1 gap-3">
+      <div class="p-3 border rounded-md flex justify-between items-center">
+        <div>
+          <div class="font-semibold">50:50</div><div class="text-sm text-gray-500">Remove two wrong options</div>
+        </div>
+        <button class="shopBuy px-3 py-1 bg-blue-600 text-white rounded-md" data-power="5050" data-price="80">Buy 80</button>
+      </div>
+      <div class="p-3 border rounded-md flex justify-between items-center">
+        <div>
+          <div class="font-semibold">Hint</div><div class="text-sm text-gray-500">Reveal a hint</div>
+        </div>
+        <button class="shopBuy px-3 py-1 bg-blue-600 text-white rounded-md" data-power="hint" data-price="60">Buy 60</button>
+      </div>
+      <div class="p-3 border rounded-md flex justify-between items-center">
+        <div>
+          <div class="font-semibold">Skip</div><div class="text-sm text-gray-500">Skip a question</div>
+        </div>
+        <button class="shopBuy px-3 py-1 bg-blue-600 text-white rounded-md" data-power="skip" data-price="50">Buy 50</button>
+      </div>
+    </div>
+  </div>
 </div>
 
-<!-- TOAST -->
-<div id="toast" class="fixed top-4 right-4 hidden bg-white shadow-lg rounded-lg px-4 py-2 border">
-  <span id="toastText"></span>
+<div id="saveModal" class="hidden fixed inset-0 bg-black bg-opacity-40 z-50 items-center justify-center p-4">
+  <div class="bg-white rounded-lg p-4 max-w-md mx-auto">
+    <div class="flex justify-between items-center">
+      <h4 class="font-semibold">Save Quiz</h4>
+      <button id="closeSave" class="text-gray-500">Close</button>
+    </div>
+    <div class="mt-3 space-y-2">
+      <label class="text-sm font-medium">Title</label>
+      <input id="quizTitle" class="w-full border rounded-md p-2" placeholder="My Quiz" />
+      <label class="text-sm font-medium">Category</label>
+      <select id="quizCategory" class="w-full border rounded-md p-2">
+        <option>General</option><option>Education</option><option>Science</option><option>Other</option>
+      </select>
+      <div class="flex gap-2 mt-3">
+        <button id="saveToLocal" class="px-3 py-2 bg-blue-600 text-white rounded-md">Save</button>
+        <button id="cancelSave" class="px-3 py-2 bg-gray-100 rounded-md">Cancel</button>
+      </div>
+    </div>
+  </div>
 </div>
 
-<!-- AUDIO -->
-<audio id="correctSound" src="https://www.soundjay.com/buttons/sounds/button-1.mp3"></audio>
-<audio id="incorrectSound" src="https://www.soundjay.com/buttons/sounds/button-10.mp3"></audio>
-<audio id="coinSound" src="https://www.soundjay.com/buttons/sounds/button-7.mp3"></audio>
-<audio id="powerSound" src="https://www.soundjay.com/buttons/sounds/button-4.mp3"></audio>
+<!-- toast -->
+<div id="toast" class="fixed top-6 right-6 hidden bg-white shadow-md rounded-lg p-3 z-50"></div>
+
+<!-- Sounds -->
+<audio id="correctSound" src="https://www.soundjay.com/buttons/sounds/button-1.mp3" preload="auto"></audio>
+<audio id="incorrectSound" src="https://www.soundjay.com/buttons/sounds/button-10.mp3" preload="auto"></audio>
+<audio id="coinSound" src="https://www.soundjay.com/buttons/sounds/button-7.mp3" preload="auto"></audio>
+<audio id="powerSound" src="https://www.soundjay.com/buttons/sounds/button-4.mp3" preload="auto"></audio>
 
 <script>
-/* ============================================================
-   STATE
-============================================================ */
+/* =========================
+   App state
+========================= */
 const App = {
-  pdfText: "",
+  pdfText: '',
   seeds: [],
   questions: [],
   userAnswers: {},
@@ -243,446 +339,599 @@ const App = {
   correctCount: 0,
   streak: 0,
   coins: 100,
-  powerups: { "5050": 3, hint: 3, skip: 2 }
+  powerups: { '5050': 3, hint: 3, skip: 2 },
+  timers: { mode: 'question', quiz: 300, question: 30, interval: null, quizRemaining: null, questionRemaining: null }
 };
 
-/* ============================================================
-   UTILITIES
-============================================================ */
-const $ = (s) => document.querySelector(s);
-function toast(msg) {
-  $("#toastText").textContent = msg;
-  $("#toast").classList.remove("hidden");
-  setTimeout(() => $("#toast").classList.add("hidden"), 1800);
-}
-function play(id) {
-  const el = $(id);
-  if (el) { el.currentTime = 0; el.play().catch(()=>{}); }
-}
+/* =========================
+   Utility helpers
+========================= */
+const $ = s => document.querySelector(s);
+function el(tag,cls,txt){ const e=document.createElement(tag); if(cls) e.className=cls; if(txt!==undefined) e.textContent=txt; return e; }
+function toast(msg,ms=1800){ $('#toast').textContent = msg; $('#toast').classList.remove('hidden'); setTimeout(()=>$('#toast').classList.add('hidden'), ms); }
+function play(id){ try{ const a = document.querySelector(id); if(a){ a.currentTime = 0; a.play().catch(()=>{}); } }catch(e){} }
 
-/* ============================================================
-   PDF UPLOAD
-============================================================ */
-$("#browseBtn").onclick = () => $("#pdfInput").click();
-$("#pdfInput").onchange = (e) => loadPDF(e.target.files[0]);
+/* =========================
+   In-app detection fallback display
+========================= */
+(function showInAppOverlayIfNeeded(){
+  try {
+    const ua = navigator.userAgent || '';
+    const inApp = /FBAN|FBAV|Instagram|Messenger|Line\//i.test(ua);
+    const params = new URLSearchParams(location.search);
+    const overlay = $('#inAppOverlay');
+    if(inApp && !params.has('openExternalBrowser')){
+      // set link to current location with param (so attempting open will not loop infinitely)
+      $('#openExternalLink').href = location.href + (location.search ? '&' : '?') + 'openExternalBrowser=1';
+      overlay.classList.remove('hidden');
+      // wire dismiss
+      $('#dismissInApp').addEventListener('click', ()=> overlay.classList.add('hidden'));
+    } else {
+      if(overlay) overlay.classList.add('hidden');
+    }
+  } catch(e){ /* ignore */ }
+})();
 
-["dragenter","dragover"].forEach(ev=>{
-  $("#dropArea").addEventListener(ev, e=>{
-    e.preventDefault(); e.stopPropagation();
-    $("#dropArea").classList.add("bg-blue-100");
-  });
+/* =========================
+   PDF upload & extract
+========================= */
+$('#browseBtn').addEventListener('click', ()=> $('#pdfInput').click());
+$('#pdfInput').addEventListener('change', (e)=> { if(e.target.files[0]) loadPDF(e.target.files[0]); });
+
+['dragenter','dragover'].forEach(evt => {
+  $('#dropArea').addEventListener(evt, (e)=>{ e.preventDefault(); $('#dropArea').classList.add('bg-blue-100'); });
 });
-["dragleave","drop"].forEach(ev=>{
-  $("#dropArea").addEventListener(ev, e=>{
-    e.preventDefault(); $("#dropArea").classList.remove("bg-blue-100");
-  });
+['dragleave','drop'].forEach(evt => {
+  $('#dropArea').addEventListener(evt, (e)=>{ e.preventDefault(); $('#dropArea').classList.remove('bg-blue-100'); });
 });
-$("#dropArea").ondrop = (e)=>{
-  const f = e.dataTransfer.files[0];
-  if (f?.type === "application/pdf") loadPDF(f);
-  else toast("Not a PDF");
-};
+$('#dropArea').addEventListener('drop', (e)=> {
+  e.preventDefault();
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if(!f) return;
+  if(f.type !== 'application/pdf'){ toast('Please drop a PDF'); return; }
+  loadPDF(f);
+});
 
-async function loadPDF(file) {
-  $("#fileInfo").classList.remove("hidden");
-  $("#fileName").textContent = file.name;
-  $("#fileSize").textContent = Math.round(file.size/1024)+" KB";
+async function loadPDF(file){
+  $('#fileInfo').classList.remove('hidden');
+  $('#fileName').textContent = file.name;
+  $('#fileSize').textContent = Math.round(file.size/1024) + ' KB';
+  $('#progressWrapper').classList.remove('hidden');
+  $('#progressBar').style.width = '4%';
+  $('#progressText').textContent = 'Loading...';
 
-  $("#progressWrapper").classList.remove("hidden");
-  $("#progressBar").style.width = "5%";
+  try{
+    const buffer = await file.arrayBuffer();
+    const loadingTask = pdfjsLib.getDocument({data: buffer});
+    const pdf = await loadingTask.promise;
+    const total = pdf.numPages;
+    let fullText = '';
+    for(let i=1;i<=total;i++){
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const pageText = content.items.map(it=>it.str).join(' ');
+      fullText += '\n\n' + pageText;
+      $('#progressBar').style.width = Math.round((i/total)*100) + '%';
+      $('#progressText').textContent = `Extracting page ${i} / ${total}`;
+      await new Promise(r=>setTimeout(r, 10)); // slight yield
+    }
+    App.pdfText = fullText.trim();
+    $('#progressBar').style.width = '100%';
+    $('#progressText').textContent = 'Extraction complete';
+    toast('PDF loaded');
+    buildSeedsFromText();
+  } catch(err){
+    console.error(err);
+    toast('Failed to load PDF');
+    $('#progressWrapper').classList.add('hidden');
+  }
+}
 
-  const buffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({data:buffer}).promise;
+/* =========================
+   Build seeds (improved)
+========================= */
+function buildSeedsFromText(){
+  const t = (App.pdfText || '').replace(/\s+/g,' ').trim();
+  if(!t){ toast('No text extracted'); return; }
 
-  let text = "";
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    text += content.items.map(it => it.str).join(" ") + "\n";
-    $("#progressBar").style.width = Math.round((i/pdf.numPages)*100)+"%";
+  // sentence split
+  const sentences = t.split(/(?<=[.?!])\s+/).map(s=>s.trim()).filter(s=>s.length>30);
+
+  // preference for definition-like sentences
+  const patterns = [/\b(is|are|means|refers to|defined as|consists of|composed of|characterized by)\b/i, /:\s/, /\b(e\.g\.|for example)\b/i];
+  let seeds = sentences.filter(s => patterns.some(p=>p.test(s)));
+
+  if(seeds.length < 8){
+    // add other long sentences (up to 200)
+    seeds = seeds.concat(sentences.slice(0,200));
   }
 
-  App.pdfText = text;
-  toast("PDF Loaded");
-  extractSeeds();
+  // dedupe by normalized substring
+  const seen = new Set();
+  const unique = [];
+  for(const s of seeds){
+    const key = s.toLowerCase().replace(/[^a-z0-9 ]+/g,'').slice(0,120);
+    if(!seen.has(key)){ seen.add(key); unique.push(s); }
+  }
+
+  App.seeds = unique;
+  $('#seedCount').textContent = App.seeds.length;
+  rebuildNumDropdown(App.seeds.length);
 }
 
-/* ============================================================
-   SMART SEED EXTRACTION
-============================================================ */
-function extractSeeds() {
-  const text = App.pdfText.replace(/\s+/g," ");
-  const raw = text.split(/(?<=[.?!])\s+/).filter(s=>s.length>30);
-
-  const keywords = ["is","are","refers to","defined as","consists of","because","therefore"];
-
-  let seeds = raw.filter(s => keywords.some(k=>s.toLowerCase().includes(k)));
-
-  if (seeds.length < 10)
-    seeds = seeds.concat(raw.slice(0, 50));
-
-  seeds = [...new Set(seeds)];
-
-  App.seeds = seeds;
-  $("#seedCount").textContent = seeds.length;
-
-  updateDropdown(seeds.length);
+/* Rebuild dropdown to reflect available seeds */
+function rebuildNumDropdown(max){
+  const sel = $('#numQuestions');
+  sel.innerHTML = '';
+  max = Math.max(1, Math.min(100, Math.floor(max)));
+  for(let i = Math.min(50,max); i>=1; i--){
+    const o = document.createElement('option'); o.value = i; o.textContent = i + (i===1?' item':' items');
+    sel.appendChild(o);
+  }
 }
 
-/* ============================================================
-   GENERATE QUESTIONS
-============================================================ */
-function generateQuestions(n, focus=[]) {
-
-  const out = [];
+/* =========================
+   Question generation (smarter)
+========================= */
+function generateQuestionsFromSeeds(requestedCount, focusKeywords=[], difficulty='mixed'){
+  requestedCount = Math.max(1, Math.floor(requestedCount));
+  focusKeywords = (focusKeywords || []).map(s=>s.trim()).filter(Boolean).map(s=>s.toLowerCase());
+  const avail = App.seeds.slice();
+  const generated = [];
   const used = new Set();
 
-  function pickWord(s) {
-    const words = s.split(" ").filter(w=>w.length>4);
-    if (focus?.length) {
-      for (const f of focus) {
-        const hit = words.find(w=>w.toLowerCase().includes(f.toLowerCase()));
-        if (hit) return hit;
-      }
+  function pickImportantWord(sentence){
+    const words = sentence.split(/\s+/).map(w=>w.replace(/^[^a-zA-Z]+|[^a-zA-Z]+$/g,'')).filter(Boolean);
+    // filter candidates
+    const candidates = words.filter(w=>w.length>4 && /^[A-Za-z]+$/.test(w) && !/^(the|this|that|there|which|where|while|with)$/i.test(w));
+    if(candidates.length===0) return null;
+    // prefer focus matches
+    for(const fk of focusKeywords){
+      const m = candidates.find(c=>c.toLowerCase().includes(fk));
+      if(m) return m;
     }
-    return words.sort((a,b)=>b.length-a.length)[0];
+    // prefer capitalized (proper noun) or longest
+    const cap = candidates.find(c => /^[A-Z]/.test(c));
+    if(cap) return cap;
+    candidates.sort((a,b)=>b.length - a.length);
+    return candidates[0] || null;
   }
 
-  function distractors(word) {
-    const base = [
-      "Not related to "+word,
-      word+" (incorrect form)",
-      "Another concept"
-    ];
-    return base;
+  function generateDistractors(correct, sentence){
+    const base = [];
+    // Use other words from sentence as plausible distractors
+    const words = sentence.split(/\s+/).map(w=>w.replace(/[^a-zA-Z]+/g,'')).filter(w=>w.length>3);
+    const extras = [...new Set(words.filter(w=> w.toLowerCase() !== correct.toLowerCase()))].slice(0,5);
+    extras.forEach(e=> base.push(e));
+    // add general distractors if not enough
+    if(base.length < 3){
+      base.push(correct + ' (alt)');
+      base.push('A related concept');
+      base.push('Not the correct answer');
+    }
+    // trim to unique
+    const uniq = [...new Set(base)].slice(0,3);
+    return uniq;
   }
 
-  for (const s of App.seeds) {
-    if (out.length >= n) break;
-    const key = pickWord(s);
-    if (!key) continue;
+  // Generate until requestedCount or seeds exhausted
+  while(generated.length < requestedCount && avail.length > 0){
+    // pick a seed (random from top chunk to favor earlier)
+    const idx = Math.floor(Math.random()*Math.min(12, avail.length));
+    const seed = avail.splice(idx,1)[0];
+    const word = pickImportantWord(seed);
+    if(!word) continue;
 
-    const qtext = s.replace(new RegExp(key,"i"), "_____");
-    const choices = [key, ...distractors(key)].slice(0,4);
-    shuffle(choices);
+    // create question text by blanking out the word (first occurrence, case-insensitive)
+    const qtext = seed.replace(new RegExp(`\\b${escapeReg(word)}\\b`, 'i'), '_____');
 
-    const id = qtext.toLowerCase().slice(0,50);
-    if (used.has(id)) continue;
+    // make distractors
+    const distractors = generateDistractors(word, seed);
 
-    used.add(id);
-    out.push({
-      question: qtext,
-      options: choices,
-      ans: choices.indexOf(key),
-      context: s,
-      hint: "Related to: "+key
-    });
+    const options = shuffleArray([word, ...distractors]).slice(0,4);
+    const ansIndex = options.findIndex(o=> o === word);
+
+    // dedupe question by normalized qtext
+    const norm = qtext.toLowerCase().replace(/[^a-z0-9 ]+/g,'').slice(0,120);
+    if(used.has(norm)) continue;
+    used.add(norm);
+
+    generated.push({ question: qtext, options, ans: ansIndex, hint: `Related word: ${word}`, context: seed });
   }
 
-  return out;
+  return generated;
 }
-function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } }
 
-/* ============================================================
-   START QUIZ
-============================================================ */
-$("#genBtn").onclick = () => {
-  if (!App.seeds.length) return toast("Upload PDF first");
+function escapeReg(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+function shuffleArray(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
 
-  const n = parseInt($("#numQuestions").value);
-  const focus = $("#focusAreas").value.split(",").map(s=>s.trim()).filter(Boolean);
-
-  if (App.seeds.length < n) {
-    updateDropdown(App.seeds.length);
-    return toast("Limited seeds. Dropdown adjusted.");
-  }
-
-  App.questions = generateQuestions(n, focus);
+/* =========================
+   Quiz flow
+========================= */
+function startQuizWith(questions){
+  App.questions = questions.slice();
   App.userAnswers = {};
   App.skipped = new Set();
   App.currentIndex = 0;
-  App.correctCount = 0;
-  App.score = 0;
-  App.streak = 0;
-
-  $("#quizCard").classList.remove("hidden");
-  $("#resultsCard").classList.add("hidden");
-
-  renderNavigator();
+  App.score = 0; App.correctCount = 0; App.streak = 0;
+  $('#quizCard').classList.remove('hidden');
+  $('#resultsCard').classList.add('hidden');
+  buildNavigator();
   loadQuestion(0);
+  startTimers();
   updateStats();
-};
-
-/* ============================================================
-   NAVIGATION + DISPLAY
-============================================================ */
-function renderNavigator() {
-  const g = $("#questionGrid");
-  g.innerHTML = "";
-  App.questions.forEach((q, i) => {
-    const b = document.createElement("button");
-    b.className = "w-9 h-9 rounded-lg bg-gray-100";
-    b.textContent = i+1;
-    b.onclick = ()=> loadQuestion(i);
-    g.appendChild(b);
-  });
+  toast(`Quiz started: ${questions.length} items`);
 }
-function updateNav() {
-  const children = $("#questionGrid").children;
-  [...children].forEach((c,i)=>{
-    c.className = "w-9 h-9 rounded-lg border " + 
-      (i === App.currentIndex ? "bg-blue-100 border-blue-500" :
-      App.userAnswers[i] !== undefined ? "bg-green-100 border-green-500" :
-      "bg-gray-100 border-gray-300");
+
+function buildNavigator(){
+  const grid = $('#questionGrid'); grid.innerHTML = '';
+  App.questions.forEach((q,i)=>{
+    const b = el('button','px-2 py-1 bg-gray-100 rounded', String(i+1));
+    b.addEventListener('click', ()=> loadQuestion(i));
+    grid.appendChild(b);
+  });
+  refreshNavigatorStates();
+}
+
+function refreshNavigatorStates(){
+  const nodes = $('#questionGrid').children;
+  [...nodes].forEach((n, idx)=>{
+    if(App.userAnswers[idx] !== undefined) n.classList.add('bg-green-100');
+    else n.classList.remove('bg-green-100');
+    if(idx === App.currentIndex) n.classList.add('ring-2','ring-blue-200'); else n.classList.remove('ring-2','ring-blue-200');
   });
 }
 
-function loadQuestion(i) {
+function loadQuestion(i){
+  if(i<0 || i>=App.questions.length) return;
   App.currentIndex = i;
   const q = App.questions[i];
+  $('#qTitle').textContent = `Question ${i+1}`;
+  $('#qIndex').textContent = `${i+1} / ${App.questions.length}`;
+  $('#qText').textContent = q.question;
 
-  $("#qTitle").textContent = "Question "+(i+1);
-  $("#qIndex").textContent = `${i+1} / ${App.questions.length}`;
-  $("#qText").textContent = q.question;
-
-  const optBox = $("#options");
-  optBox.innerHTML = "";
-
+  const opts = $('#options'); opts.innerHTML = '';
   q.options.forEach((o, idx)=>{
-    const div = document.createElement("div");
-    div.className = "p-3 border rounded-xl bg-white cursor-pointer hover:bg-blue-50";
-    div.innerHTML = `<b>${String.fromCharCode(65+idx)}.</b> ${o}`;
-    div.onclick = ()=> choose(idx);
-    optBox.appendChild(div);
+    const d = el('div','p-3 border rounded-lg bg-white cursor-pointer', '');
+    d.innerHTML = `<strong class="mr-2">${String.fromCharCode(65+idx)}.</strong> <span>${o}</span>`;
+    d.addEventListener('click', ()=> selectAnswer(idx));
+    opts.appendChild(d);
   });
 
-  $("#hint").classList.add("hidden");
-  updateNav();
+  $('#hint').classList.add('hidden');
+  if(App.userAnswers[i] !== undefined) showAnswerState(App.userAnswers[i]);
+  refreshNavigatorStates();
   updateStats();
+  resetQuestionTimer();
 }
 
-/* ============================================================
-   ANSWERING
-============================================================ */
-function choose(idx) {
-  const q = App.questions[App.currentIndex];
-  if (App.userAnswers[App.currentIndex] !== undefined) return;
-
-  App.userAnswers[App.currentIndex] = idx;
-
-  const opts = [...$("#options").children];
-  opts.forEach((o,i)=>{
-    o.classList.remove("option-correct","option-wrong","fade");
-    if (i === q.ans) o.classList.add("option-correct");
-    if (i === idx && idx !== q.ans) o.classList.add("option-wrong");
-    if (i !== q.ans && i !== idx) o.classList.add("fade");
-  });
-
-  if (idx === q.ans) {
+function selectAnswer(choice){
+  const idx = App.currentIndex;
+  if(App.userAnswers[idx] !== undefined) return;
+  App.userAnswers[idx] = choice;
+  const q = App.questions[idx];
+  const correct = (choice === q.ans);
+  if(correct){
     App.correctCount++;
     App.streak++;
-    App.score += 100 + (App.streak*10);
+    App.score += 100 + Math.max(0, App.streak-1) * 10;
     App.coins += 10;
-    play("#correctSound");
+    play('#correctSound');
+    toast('Correct +10 coins');
   } else {
     App.streak = 0;
-    play("#incorrectSound");
+    play('#incorrectSound');
+    toast('Incorrect');
   }
-
+  showAnswerState(choice);
   updateStats();
-  updateNav();
 }
 
-$("#prevBtn").onclick = ()=> loadQuestion(Math.max(0, App.currentIndex-1));
-$("#nextBtn").onclick = ()=> loadQuestion(Math.min(App.questions.length-1, App.currentIndex+1));
+function showAnswerState(chosen){
+  const q = App.questions[App.currentIndex];
+  const opts = Array.from(document.querySelectorAll('#options > div'));
+  opts.forEach((o, idx)=>{
+    o.classList.remove('option-correct','option-wrong','fade');
+    if(idx === q.ans) o.classList.add('option-correct');
+    if(idx === chosen && chosen !== q.ans) o.classList.add('option-wrong');
+    if(idx !== q.ans && idx !== chosen) o.classList.add('fade');
+  });
+}
 
-$("#submitBtn").onclick = submitQuiz;
+/* navigation */
+$('#nextBtn').addEventListener('click', ()=> loadQuestion(Math.min(App.currentIndex+1, App.questions.length-1)));
+$('#prevBtn').addEventListener('click', ()=> loadQuestion(Math.max(App.currentIndex-1, 0)));
+$('#submitBtn').addEventListener('click', ()=> {
+  if(Object.keys(App.userAnswers).length < App.questions.length && !confirm('Some unanswered. Submit anyway?')) return;
+  submitQuiz();
+});
 
-/* ============================================================
-   SUBMIT RESULTS
-============================================================ */
-function submitQuiz() {
+/* finish & results */
+function submitQuiz(){
+  stopAllTimers();
   const total = App.questions.length;
   const correct = App.correctCount;
   const percent = Math.round((correct/total)*100);
 
-  $("#resultsSummary").innerHTML =
-    `<div class="p-3 bg-blue-50 rounded-lg">
-      <b>${correct}/${total}</b> correct — <b>${percent}%</b> — Score: <b>${App.score}</b>
-    </div>`;
-
-  const list = $("#resultsList");
-  list.innerHTML = "";
-
-  App.questions.forEach((q, i)=>{
+  $('#resultsSummary').innerHTML = `<div class="p-3 bg-blue-50 rounded-md"><strong>Score:</strong> ${App.score} • <strong>Correct:</strong> ${correct}/${total} • <strong>${percent}%</strong></div>`;
+  const list = $('#resultsList'); list.innerHTML = '';
+  App.questions.forEach((q,i)=>{
     const chosen = App.userAnswers[i];
-
-    const div = document.createElement("div");
-    div.className = "p-3 border rounded-xl " + 
-      (chosen === q.ans ? "bg-green-50" : "bg-red-50");
-
-    div.innerHTML =
-      `<b>${i+1}. ${q.question}</b><br>
-       ${q.options.map((op,idx)=>
-         `<div>${String.fromCharCode(65+idx)}. ${op} 
-           ${idx===q.ans?"✔️":""} 
-           ${idx===chosen && chosen!==q.ans?"❌":""}
-         </div>`
-       ).join("")}`;
-
-    list.appendChild(div);
+    const isCorrect = chosen === q.ans;
+    const it = el('div','p-3 rounded-md', '');
+    it.classList.add(isCorrect?'bg-green-50':'bg-red-50');
+    it.innerHTML = `<div class="font-semibold">${i+1}. ${q.question}</div>
+      <div class="text-sm text-gray-700 mt-2">${q.options.map((op,idx)=>`<div>${String.fromCharCode(65+idx)}. ${op}${idx===q.ans?' ✅':''}${idx===chosen && !isCorrect?' ✖':''}</div>`).join('')}</div>
+      ${q.hint? `<div class="mt-2 text-xs text-gray-600 bg-gray-100 p-2 rounded">${q.hint}</div>` : ''}`;
+    list.appendChild(it);
   });
 
-  $("#quizCard").classList.add("hidden");
-  $("#resultsCard").classList.remove("hidden");
+  $('#quizCard').classList.add('hidden');
+  $('#resultsCard').classList.remove('hidden');
+
+  if(percent >= 80){ play('#powerSound'); confettiBurst(); toast('Great job!'); }
 }
 
-/* ============================================================
-   STATS
-============================================================ */
-function updateStats() {
-  $("#currentQ").textContent = App.currentIndex+1;
-  $("#score").textContent = App.score;
-  $("#correctCount").textContent = App.correctCount;
-  $("#streak").textContent = App.streak;
-  $("#coins").textContent = App.coins;
-  $("#coinsTop").textContent = App.coins;
-  $("#count5050").textContent = App.powerups["5050"];
-  $("#countHint").textContent = App.powerups["hint"];
-  $("#countSkip").textContent = App.powerups["skip"];
+/* =========================
+   Powerups & Shop
+========================= */
+function setPowerupDisplays(){
+  $('#count5050').textContent = App.powerups['5050'];
+  $('#countHint').textContent = App.powerups['hint'];
+  $('#countSkip').textContent = App.powerups['skip'];
+  $('#coins').textContent = App.coins;
+  $('#coinsTop').textContent = App.coins;
+  $('#score').textContent = App.score;
+  $('#correctCount').textContent = App.correctCount;
+  $('#streak').textContent = App.streak;
+  $('#currentQ').textContent = (App.currentIndex + 1) || '—';
 }
 
-/* ============================================================
-   DROPDOWN UPDATE
-============================================================ */
-function updateDropdown(max) {
-  const dr = $("#numQuestions");
-  dr.innerHTML = "";
-  for (let i = max; i >= 1; i--) {
-    const o = document.createElement("option");
-    o.textContent = i;
-    o.value = i;
-    dr.appendChild(o);
+$('#pu5050').addEventListener('click', ()=>{
+  if(App.powerups['5050'] <= 0){ toast('No 50:50 left'); return; }
+  const q = App.questions[App.currentIndex];
+  const opts = Array.from(document.querySelectorAll('#options > div'));
+  const wrongIdx = opts.map((o,i)=>i).filter(i=> i !== q.ans);
+  shuffleArray(wrongIdx).slice(0,2).forEach(i=>{ opts[i].classList.add('fade'); opts[i].onclick = null; });
+  App.powerups['5050']--; setPowerupDisplays(); play('#powerSound');
+});
+
+$('#puHint').addEventListener('click', ()=>{
+  if(App.powerups.hint <= 0){ toast('No hints left'); return; }
+  $('#hint').textContent = '💡 ' + (App.questions[App.currentIndex].hint || 'Review the context');
+  $('#hint').classList.remove('hidden');
+  App.powerups.hint--; setPowerupDisplays(); play('#powerSound');
+});
+
+$('#puSkip').addEventListener('click', ()=>{
+  if(App.powerups.skip <= 0){ toast('No skips left'); return; }
+  App.skipped.add(App.currentIndex);
+  App.powerups.skip--; setPowerupDisplays();
+  loadQuestion(Math.min(App.currentIndex+1, App.questions.length-1));
+});
+
+/* Shop (simple) */
+$('#closeShop')?.addEventListener('click', ()=> $('#shopModal').classList.add('hidden'));
+document.querySelectorAll('.shopBuy').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const price = parseInt(btn.dataset.price);
+    const power = btn.dataset.power;
+    if(App.coins < price){ toast('Not enough coins'); return; }
+    App.coins -= price;
+    App.powerups[power] = (App.powerups[power] || 0) + 1;
+    setPowerupDisplays();
+    $('#shopModal').classList.add('hidden');
+    play('#coinSound'); toast('Purchase successful');
+  });
+});
+/* Open shop on click of coinsTop */
+$('#coinsTop').addEventListener('click', ()=> $('#shopModal').classList.remove('hidden'));
+
+/* =========================
+   Timers
+========================= */
+$('#applyTimers').addEventListener('click', ()=>{
+  App.timers.mode = $('#timerMode').value;
+  App.timers.question = Math.max(5, parseInt($('#questionTimerInput').value) || 30);
+  App.timers.quiz = Math.max(10, parseInt($('#quizTimerInput').value) || 300);
+  startTimers();
+  toast('Timers updated');
+});
+
+function startTimers(){
+  stopAllTimers();
+  if(App.timers.mode === 'none'){ $('#timerVal').textContent = '—'; return; }
+  if(App.timers.mode === 'quiz'){
+    App.timers.quizRemaining = App.timers.quiz;
+    $('#timerVal').textContent = formatTime(App.timers.quizRemaining);
+    App.timers.interval = setInterval(()=>{
+      App.timers.quizRemaining--;
+      $('#timerVal').textContent = formatTime(App.timers.quizRemaining);
+      if(App.timers.quizRemaining <= 0){ clearInterval(App.timers.interval); submitQuiz(); }
+    },1000);
+  } else if(App.timers.mode === 'question'){
+    resetQuestionTimer();
   }
 }
 
-/* ============================================================
-   POWERUPS
-============================================================ */
-$("#pu5050").onclick = () => {
-  if (App.powerups["5050"] <= 0) return toast("No 50:50 left");
-
-  const q = App.questions[App.currentIndex];
-  const opts = [...$("#options").children];
-  const wrongs = opts.map((o,i)=>i).filter(i=>i!==q.ans);
-
-  shuffle(wrongs);
-  wrongs.slice(0,2).forEach(i=>{
-    opts[i].classList.add("fade");
-    opts[i].onclick = null;
-  });
-
-  App.powerups["5050"]--;
-  play("#powerSound");
-  updateStats();
-};
-
-$("#puHint").onclick = () => {
-  if (App.powerups.hint <= 0) return toast("No hints left");
-  $("#hint").textContent = "💡 " + App.questions[App.currentIndex].hint;
-  $("#hint").classList.remove("hidden");
-  App.powerups.hint--;
-  updateStats();
-};
-
-$("#puSkip").onclick = ()=> {
-  if (App.powerups.skip <= 0) return toast("No skip left");
-  App.skipped.add(App.currentIndex);
-  App.powerups.skip--;
-  updateStats();
-  loadQuestion(Math.min(App.currentIndex+1, App.questions.length-1));
-};
-
-/* ============================================================
-   SAVING QUIZZES
-============================================================ */
-$("#saveQuizBtn").onclick = ()=>{
-  if (!App.questions.length) return toast("No quiz to save");
-  saveQuiz();
-};
-
-function saveQuiz() {
-  const data = {
-    id: Date.now(),
-    questions: App.questions,
-    created: new Date().toISOString()
-  };
-
-  let list = JSON.parse(localStorage.getItem("quizpro_saved") || "[]");
-  list.push(data);
-  localStorage.setItem("quizpro_saved", JSON.stringify(list));
-
-  toast("Quiz saved");
-  loadSaved();
+function resetQuestionTimer(){
+  if(App.timers.mode !== 'question') return;
+  App.timers.questionRemaining = App.timers.question;
+  $('#timerVal').textContent = formatTime(App.timers.questionRemaining);
+  if(App.timers.interval) clearInterval(App.timers.interval);
+  App.timers.interval = setInterval(()=>{
+    App.timers.questionRemaining--;
+    $('#timerVal').textContent = formatTime(App.timers.questionRemaining);
+    if(App.timers.questionRemaining <= 0){
+      clearInterval(App.timers.interval);
+      App.userAnswers[App.currentIndex] = null; // mark as skipped/wrong
+      loadQuestion(nextUnansweredOrNext());
+    }
+  },1000);
 }
 
-$("#clearStorageBtn").onclick = ()=> {
-  localStorage.removeItem("quizpro_saved");
-  toast("Storage cleared");
-  loadSaved();
-};
+function stopAllTimers(){ if(App.timers.interval) clearInterval(App.timers.interval); App.timers.interval = null; $('#timerVal').textContent = '—'; }
+function formatTime(sec){ if(sec==null) return '—'; const m=Math.floor(sec/60); const s=sec%60; return `${m}:${s.toString().padStart(2,'0')}`; }
+function nextUnansweredOrNext(){ for(let i=0;i<App.questions.length;i++) if(App.userAnswers[i]===undefined && !App.skipped.has(i)) return i; return Math.min(App.currentIndex+1, App.questions.length-1); }
 
-function loadSaved() {
-  const list = JSON.parse(localStorage.getItem("quizpro_saved") || "[]");
-  const box = $("#quizList");
-  box.innerHTML = "";
-  if (!list.length) return box.innerHTML = `<div class="text-gray-500">No saved quizzes</div>`;
+/* =========================
+   Save / Load / Export
+========================= */
+$('#saveQuizBtn').addEventListener('click', ()=>{
+  if(!App.questions || !App.questions.length) return toast('No quiz to save');
+  $('#saveModal').classList.remove('hidden');
+  $('#quizTitle').value = (App.pdfText? 'Quiz from PDF':'' ) || 'My Quiz';
+});
+$('#closeSave').addEventListener('click', ()=> $('#saveModal').classList.add('hidden'));
+$('#cancelSave').addEventListener('click', ()=> $('#saveModal').classList.add('hidden'));
+$('#saveToLocal').addEventListener('click', ()=>{
+  const title = $('#quizTitle').value.trim() || 'Untitled';
+  const cat = $('#quizCategory').value || 'General';
+  const data = { id: 'q_' + Date.now(), title, cat, questions: App.questions, created: new Date().toISOString() };
+  const list = JSON.parse(localStorage.getItem('quizpro_saved') || '[]'); list.push(data); localStorage.setItem('quizpro_saved', JSON.stringify(list));
+  $('#saveModal').classList.add('hidden');
+  toast('Saved');
+  loadSavedQuizzes();
+});
 
-  list.forEach(q=>{
-    const div = document.createElement("div");
-    div.className = "p-3 border rounded-lg bg-gray-50";
-
-    div.innerHTML =
-      `<div class="flex justify-between items-center">
-        <div>
-          <b>Saved Quiz</b>
-          <div class="text-xs text-gray-500">${new Date(q.created).toLocaleString()}</div>
-        </div>
-        <div class="flex gap-2">
-          <button class="px-3 py-1 bg-blue-100 rounded load" data-id="${q.id}">Load</button>
-          <button class="px-3 py-1 bg-red-100 rounded del" data-id="${q.id}">Delete</button>
-        </div>
-      </div>`;
-
-    box.appendChild(div);
+function loadSavedQuizzes(){
+  const list = JSON.parse(localStorage.getItem('quizpro_saved') || '[]');
+  const container = $('#quizList'); container.innerHTML = '';
+  if(list.length === 0){ container.innerHTML = '<div class="text-gray-500">No saved quizzes</div>'; return; }
+  list.forEach(item => {
+    const c = el('div','p-3 border rounded-md bg-gray-50');
+    c.innerHTML = `<div class="flex justify-between items-center">
+      <div>
+        <div class="font-semibold">${item.title}</div>
+        <div class="text-xs text-gray-500">${new Date(item.created).toLocaleString()}</div>
+      </div>
+      <div class="flex gap-2">
+        <button class="px-3 py-1 bg-blue-100 rounded loadBtn" data-id="${item.id}">Load</button>
+        <button class="px-3 py-1 bg-red-100 rounded delBtn" data-id="${item.id}">Delete</button>
+      </div>
+    </div>`;
+    container.appendChild(c);
   });
 
-  document.querySelectorAll(".load").forEach(b=>{
-    b.onclick = ()=>{
-      const list = JSON.parse(localStorage.getItem("quizpro_saved")||"[]");
-      const found = list.find(x=>x.id==b.dataset.id);
-      if (!found) return;
+  document.querySelectorAll('.loadBtn').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const id = b.dataset.id;
+      const list = JSON.parse(localStorage.getItem('quizpro_saved') || '[]');
+      const found = list.find(x => x.id === id);
+      if(!found) return toast('Not found');
       App.questions = found.questions;
       App.userAnswers = {};
       loadQuestion(0);
-      $("#quizCard").classList.remove("hidden");
-      toast("Loaded");
-    };
+      $('#quizCard').classList.remove('hidden');
+      $('#savedCard').classList.add('hidden');
+      toast('Loaded saved quiz');
+      buildNavigator();
+      updateStats();
+    });
   });
 
-  document.querySelectorAll(".del").forEach(b=>{
-    b.onclick = ()=>{
-      let list = JSON.parse(localStorage.getItem("quizpro_saved")||"[]");
-      list = list.filter(x=>x.id!=b.dataset.id);
-      localStorage.setItem("quizpro_saved", JSON.stringify(list));
-      toast("Deleted");
-      loadSaved();
-    };
+  document.querySelectorAll('.delBtn').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const id = b.dataset.id;
+      let list = JSON.parse(localStorage.getItem('quizpro_saved') || '[]');
+      list = list.filter(x => x.id !== id);
+      localStorage.setItem('quizpro_saved', JSON.stringify(list));
+      toast('Deleted');
+      loadSavedQuizzes();
+    });
   });
 }
 
-loadSaved();
-</script>
+$('#exportAllBtn').addEventListener('click', ()=>{
+  const blob = new Blob([JSON.stringify({ seeds: App.seeds, exportedAt: new Date().toISOString() }, null, 2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'quiz-seeds.json'; a.click(); URL.revokeObjectURL(a.href);
+  toast('Exported');
+});
 
+$('#exportResults').addEventListener('click', ()=>{
+  const blob = new Blob([JSON.stringify({ score: App.score, correct: App.correctCount, answers: App.userAnswers, exportedAt: new Date().toISOString() }, null, 2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'quiz-results.json'; a.click(); URL.revokeObjectURL(a.href);
+  toast('Results exported');
+});
+
+$('#clearStorageBtn').addEventListener('click', ()=>{
+  if(!confirm('Clear all saved quizzes?')) return;
+  localStorage.removeItem('quizpro_saved');
+  loadSavedQuizzes();
+  toast('Cleared storage');
+});
+
+/* Retry */
+$('#retryAll').addEventListener('click', ()=> {
+  if(!App.questions || App.questions.length===0) return;
+  startQuizWith(App.questions.map(q=>({...q})));
+});
+$('#retryWrong').addEventListener('click', ()=> {
+  const wrongs = App.questions.filter((q,i)=> App.userAnswers[i] !== q.ans);
+  if(wrongs.length===0) return toast('No wrong items');
+  startQuizWith(wrongs);
+});
+
+/* =========================
+   Generation button
+========================= */
+$('#genBtn').addEventListener('click', ()=>{
+  if(!App.seeds || App.seeds.length===0){ buildSeedsFromText(); if(App.seeds.length===0) return toast('No seeds available'); }
+  const desired = parseInt($('#numQuestions').value) || 10;
+  const focus = ($('#focusAreas').value || '').split(',').map(s=>s.trim()).filter(Boolean);
+  const difficulty = $('#difficulty').value || 'mixed';
+  if(App.seeds.length < desired){
+    rebuildNumDropdown(App.seeds.length);
+    return toast(`Only ${App.seeds.length} seeds available. Dropdown adjusted.`);
+  }
+  const questions = generateQuestionsFromSeeds(desired, focus, difficulty);
+  if(!questions || questions.length===0) return toast('Could not generate any questions');
+  if(questions.length < desired){ rebuildNumDropdown(questions.length); toast(`Only ${questions.length} questions could be formed`); }
+  startQuizWith(questions);
+});
+
+/* Build study preview */
+$('#buildStudyBtn').addEventListener('click', ()=>{
+  if(!App.pdfText) return toast('Upload a PDF first');
+  const paras = App.pdfText.split(/\n{1,}/).map(p=>p.trim()).filter(Boolean).slice(0,8);
+  const content = paras.map((p,i)=>`<h4 class="font-semibold">Section ${i+1}</h4><p class="text-sm text-gray-600">${p.slice(0,600)}</p>`).join('');
+  const modal = document.createElement('div'); modal.className='fixed inset-0 z-50 bg-black bg-opacity-40 flex items-center justify-center p-4';
+  modal.innerHTML = `<div class="bg-white rounded-lg p-4 max-w-3xl w-full"><div class="flex justify-between items-center"><h3 class="font-semibold">Study Preview</h3><button id="closeStudy" class="text-gray-500">Close</button></div><div class="mt-3 space-y-3 overflow-auto max-h-[60vh]">${content}</div></div>`;
+  document.body.appendChild(modal);
+  modal.querySelector('#closeStudy').addEventListener('click', ()=> modal.remove());
+});
+
+/* =========================
+   Confetti
+========================= */
+function confettiBurst(){
+  const container = document.createElement('div'); container.style.position='fixed'; container.style.inset='0'; container.style.pointerEvents='none'; container.style.zIndex='9999';
+  document.body.appendChild(container);
+  const colors = ['#4361ee','#3a0ca3','#4cc9f0','#f72585','#fca311'];
+  for(let i=0;i<40;i++){
+    const el = document.createElement('div'); el.style.position='absolute'; el.style.left=(Math.random()*100)+'%'; el.style.top='-10%';
+    el.style.width='8px'; el.style.height='12px'; el.style.background = colors[Math.floor(Math.random()*colors.length)];
+    el.style.borderRadius='2px'; el.style.opacity='0.95'; el.style.transform = `rotate(${Math.random()*360}deg)`;
+    el.style.transition = 'transform 2.6s linear, top 2.6s linear, opacity 2.6s linear';
+    container.appendChild(el);
+    setTimeout(()=>{ el.style.top = (100 + Math.random()*60) + 'vh'; el.style.transform = `translateY(0) rotate(${Math.random()*1080}deg)`; el.style.opacity='0'; }, 20 + i*10);
+    setTimeout(()=> el.remove(), 3200 + Math.random()*400);
+  }
+  setTimeout(()=> container.remove(), 3600);
+}
+
+/* =========================
+   Initialization
+========================= */
+function updateStats(){ setPowerupDisplays(); }
+function setPowerupDisplays(){ $('#count5050').textContent = App.powerups['5050']; $('#countHint').textContent = App.powerups['hint']; $('#countSkip').textContent = App.powerups['skip']; $('#coins').textContent = App.coins; $('#coinsTop').textContent = App.coins; $('#score').textContent = App.score; $('#correctCount').textContent = App.correctCount; $('#streak').textContent = App.streak; }
+
+function loadSavedQuizzesOnStart(){ loadSavedQuizzes(); loadSavedQuizzes = loadSavedQuizzes; } // dummy to appease linter
+loadSavedQuizzes();
+
+/* small helpers to ensure UI remains in sync */
+setInterval(()=>{ updateStats(); }, 1000);
+
+</script>
 </body>
 </html>
