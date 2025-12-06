@@ -70,9 +70,14 @@
   if(inApp && params.get("external")){
     // Still in in-app browser → block
     document.getElementById("inAppBlock").classList.remove("hidden");
-    document.getElementById("openExternalBtn").onclick = ()=> {
-      window.location.href = "googlechrome://" + window.location.href.replace(/^https?:\/\//,'');
-    };
+    document.getElementById("openExternalBtn").onclick = ()=>{
+  try {
+    // Android Chrome
+    window.location.href = "intent://" + window.location.host + window.location.pathname + "#Intent;scheme=https;package=com.android.chrome;end";
+  } catch(err){
+    alert("Please open this page in Chrome using ••• menu → Open in browser.");
+  }
+};
   }
 })();
 </script>
@@ -192,7 +197,20 @@ document.getElementById("closeNav").onclick = ()=> {
           <label class="text-sm font-medium">Questions</label>
           <select id="numQuestions" class="mt-1 w-full border rounded p-2"></select>
         </div>
+        <div class="grid grid-cols-2 gap-3 mt-3">
+  <div>
+    <label class="text-sm font-medium">Per Question Timer (seconds)</label>
+    <input id="questionTimerInput" class="mt-1 w-full border p-2 rounded" value="30" />
+  </div>
+  <div>
+    <label class="text-sm font-medium">Full Quiz Timer (seconds)</label>
+    <input id="quizTimerInput" class="mt-1 w-full border p-2 rounded" value="300" />
+  </div>
+</div>
 
+<button id="applyTimers" class="mt-3 px-3 py-2 bg-gray-100 rounded">
+  Apply Timers
+</button>
         <div>
           <label class="text-sm font-medium">Difficulty</label>
           <select id="difficulty" class="mt-1 w-full border rounded p-2">
@@ -595,9 +613,26 @@ function buildNavigatorUI(){
 }
 function refreshNavigator(){
   const nodes = $('#questionGrid').children;
+
   [...nodes].forEach((n,i)=>{
-    n.classList.toggle('bg-green-100', App.userAnswers[i] !== undefined);
-    n.classList.toggle('ring-2', i === App.currentIndex);
+    n.className = "p-2 rounded text-sm"; // reset
+
+    if(i === App.currentIndex){
+      n.classList.add("ring-2", "ring-blue-500");
+    }
+
+    if(App.userAnswers[i] === undefined){
+      // unanswered
+      n.classList.add("bg-gray-100");
+    } else {
+      const q = App.questions[i];
+      const chosen = App.userAnswers[i];
+      if(chosen === q.ans){
+        n.classList.add("bg-green-200"); // correct
+      } else {
+        n.classList.add("bg-red-200"); // wrong
+      }
+    }
   });
 }
 
@@ -775,35 +810,58 @@ $('#saveToLocal').addEventListener('click', ()=>{
   $('#saveModal').classList.add('hidden'); toast('Saved'); loadSavedQuizzes();
 });
 
-/* load saved list */
 function loadSavedQuizzes(){
   const list = JSON.parse(localStorage.getItem('quizpro_saved') || '[]');
-  const box = $('#quizList'); box.innerHTML = '';
-  if(!list.length){ box.innerHTML = '<div class="text-gray-500">No saved quizzes</div>'; return; }
-  list.forEach(it=>{
-    const row = el('div','p-3 border rounded bg-gray-50');
-    row.innerHTML = `<div class="flex justify-between items-center"><div><div class="font-semibold">${it.title}</div><div class="text-xs text-gray-500">${new Date(it.created).toLocaleString()}</div></div>
-      <div class="flex gap-2"><button class="px-3 py-1 bg-blue-100 loadBtn" data-id="${it.id}">Load</button><button class="px-3 py-1 bg-red-100 delBtn" data-id="${it.id}">Delete</button></div></div>`;
+  const box = $('#quizList');
+  box.innerHTML = '';
+
+  if(list.length === 0){
+    box.innerHTML = '<div class="text-gray-500">No saved quizzes</div>';
+    return;
+  }
+
+  list.forEach(item=>{
+    const row = document.createElement('div');
+    row.className = "p-3 border rounded bg-gray-50";
+
+    row.innerHTML = `
+      <div class="flex justify-between items-center">
+        <div>
+          <div class="font-semibold">${item.title}</div>
+          <div class="text-xs text-gray-500">${new Date(item.created).toLocaleString()}</div>
+        </div>
+        <div class="flex gap-2">
+          <button class="loadSaved px-3 py-1 bg-blue-100 rounded" data-id="${item.id}">Load</button>
+          <button class="deleteSaved px-3 py-1 bg-red-100 rounded" data-id="${item.id}">Delete</button>
+        </div>
+      </div>
+    `;
+
     box.appendChild(row);
   });
-  // wire load & delete
-  document.querySelectorAll('.loadBtn').forEach(b=>{
-    b.addEventListener('click', ()=>{
-      const id = b.dataset.id;
-      const list = JSON.parse(localStorage.getItem('quizpro_saved') || '[]');
-      const found = list.find(x=>x.id === id);
-      if(!found) return toast('Saved quiz not found');
-      App.questions = found.questions;
-      App.userAnswers = {}; App.skipped = new Set(); App.currentIndex = 0;
-      $('#quizCard').classList.remove('hidden'); $('#savedCard').classList.add('hidden'); $('#resultsCard').classList.add('hidden');
-      buildNavigatorUI(); loadQuestion(0); updatePowerupUI(); toast('Loaded saved quiz');
-    });
+
+  // FIXED event binding
+  box.querySelectorAll('.loadSaved').forEach(btn=>{
+    btn.onclick = ()=>{
+      const id = btn.dataset.id;
+      const saved = JSON.parse(localStorage.getItem('quizpro_saved') || '[]');
+      const quiz = saved.find(x=>x.id===id);
+      if(!quiz){ toast('Quiz not found'); return; }
+
+      startQuizWith(quiz.questions);
+      $('#savedCard').classList.add('hidden');
+    };
   });
-  document.querySelectorAll('.delBtn').forEach(b=>{
-    b.addEventListener('click', ()=>{
-      if(!confirm('Delete saved quiz?')) return;
-      const id = b.dataset.id; let list = JSON.parse(localStorage.getItem('quizpro_saved') || '[]'); list = list.filter(x=>x.id !== id); localStorage.setItem('quizpro_saved', JSON.stringify(list)); toast('Deleted'); loadSavedQuizzes();
-    });
+
+  box.querySelectorAll('.deleteSaved').forEach(btn=>{
+    btn.onclick = ()=>{
+      const id = btn.dataset.id;
+      let saved = JSON.parse(localStorage.getItem('quizpro_saved') || '[]');
+      saved = saved.filter(x=>x.id!==id);
+      localStorage.setItem('quizpro_saved', JSON.stringify(saved));
+      toast('Deleted');
+      loadSavedQuizzes();
+    };
   });
 }
 
@@ -826,37 +884,40 @@ $('#retryWrong').addEventListener('click', ()=> {
 
 /* Study preview: term -> description extraction */
 $('#buildStudyBtn').addEventListener('click', ()=> {
-  if(!App.pdfText || App.pdfText.trim().length < 20) return toast('Upload a PDF first');
+  if(!App.pdfText){ toast('Upload a PDF first'); return; }
+
   const text = App.pdfText.replace(/\s+/g,' ');
-  const sentences = text.split(/(?<=[.?!])\s+/).map(s=>s.trim()).filter(s=>s.length>25);
-  // heuristics: sentences with 'is|refers to|means|defined as|consists of' become term:definition
-  const patterns = /\b([A-Z][a-z0-9\- ]{2,80}?)\b.*\b(is|are|refers to|means|defined as|consists of|composed of)\b\s*(.*?)[.?!]/i;
+  const sentences = text.split(/(?<=[.?!])\s+/);
+
   const terms = [];
+
   for(const s of sentences){
-    const m = s.match(patterns);
-    if(m){
-      const term = m[1].trim();
-      const def = (m[3] || '').trim();
-      if(term && def) terms.push({term, def, context: s});
-    }
-    if(terms.length >= 80) break;
-  }
-  // fallback: if none found, build from first nouns/phrases
-  if(terms.length === 0){
-    for(const s of sentences.slice(0,80)){
-      const phrase = s.split(/,| - |: /)[0].slice(0,80);
-      if(phrase.length>6) terms.push({term: phrase, def: s.slice(0,200), context: s});
-      if(terms.length>=80) break;
-    }
+    // Pattern 1: “Term is definition”
+    let m = s.match(/^([A-Z][A-Za-z0-9 \-]{2,50})\s+(is|are|refers to|means|defined as|consists of)\s+(.*)/i);
+    if(m) terms.push({term:m[1], def:m[3], context:s});
+    // Pattern 2: “Term: Definition”
+    m = s.match(/^([A-Za-z0-9 \-]{2,80}):\s+(.*)/);
+    if(m) terms.push({term:m[1], def:m[2], context:s});
+    if(terms.length>=60) break;
   }
 
-  // render professional study modal
-  const container = $('#studyContent'); container.innerHTML = '';
-  for(const t of terms){
-    const row = el('div','p-3 border rounded');
-    row.innerHTML = `<div class="font-semibold">${t.term}</div><div class="text-sm text-gray-700 mt-1">${t.def}</div><div class="text-xs text-gray-400 mt-2">${t.context.slice(0,240)}${t.context.length>240?'...':''}</div>`;
-    container.appendChild(row);
+  // fallback
+  if(terms.length===0){
+    terms.push({term:"General Summary", def:text.slice(0,500)+"...", context:"Full PDF"});
   }
+
+  const box = $('#studyContent');
+  box.innerHTML = '';
+  for(const t of terms){
+    const row = document.createElement('div');
+    row.className = "p-3 border rounded";
+    row.innerHTML = `
+      <div class="font-semibold">${t.term}</div>
+      <div class="text-sm text-gray-700 mt-1">${t.def}</div>
+    `;
+    box.appendChild(row);
+  }
+
   $('#studyModal').classList.remove('hidden');
 });
 $('#closeStudyModal').addEventListener('click', ()=> $('#studyModal').classList.add('hidden'));
