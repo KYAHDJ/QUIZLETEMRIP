@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>QuizPro — PDF to Quiz (Full Build)</title>
+<title>QuizPro — PDF to Quiz</title>
 
 <!-- TailwindCSS -->
 <script src="https://cdn.tailwindcss.com"></script>
@@ -15,225 +16,241 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
 <style>
-/* small custom tweaks */
-.fade { opacity:.28; pointer-events:none; }
-.option-correct { border-color:#16a34a !important; background:#dcfce7 !important; }
-.option-wrong { border-color:#ef4444 !important; background:#fee2e2 !important; }
-::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:#93c5fd;border-radius:6px}
+/* Sidebar slide-out */
+#sidebarNav {
+  transform: translateX(-100%);
+  transition: transform .35s ease;
+}
+#sidebarNav.active {
+  transform: translateX(0);
+}
+.option-correct { background:#dcfce7 !important; border-color:#16a34a !important; }
+.option-wrong { background:#fee2e2 !important; border-color:#ef4444 !important; }
+.fade { opacity:.35; pointer-events:none; }
 </style>
 
-<!--
-  External-browser / in-app detection + redirect/fallback
-  Strategy (Option C - best):
-  1) If we detect common in-app browser UA (Facebook, Instagram, Messenger),
-     attempt to open same URL in a new tab with query param ?openExternalBrowser=1.
-  2) If that doesn't succeed or param is present, show an instruction overlay
-     prompting the user to "Open in external browser" with a big link. This forces
-     the user to open it normally.
--->
+<!-- Force Browser (Block Messenger / FB / IG in-app) -->
 <script>
 (function(){
-  try {
-    const ua = navigator.userAgent || '';
-    const inApp = /FBAN|FBAV|Instagram|Messenger|Line\//i.test(ua);
-    const params = new URLSearchParams(location.search);
-    // If in-app and not yet tried, attempt to open externally
-    if (inApp && !params.has('openExternalBrowser')) {
-      // try to open in new tab/window (best-effort)
-      const newUrl = location.href + (location.search ? '&' : '?') + 'openExternalBrowser=1';
-      // try window.open — often blocked, but may trigger external prompt in some apps
-      try { window.open(newUrl, '_blank'); } catch(e){ /*ignore*/ }
-      // also try top.location where allowed
-      try { top.location.href = newUrl; return; } catch(e){ /*ignore*/ }
-      // fallback continues with page load and will display overlay below
-    }
-  } catch(e){}
+  const ua = navigator.userAgent || "";
+  const inApp = /FBAN|FBAV|Instagram|Messenger/i.test(ua);
+  const params = new URLSearchParams(location.search);
+  if(inApp && !params.get("external")){
+    const newUrl = location.origin + location.pathname + "?external=1";
+    try { window.location.href = newUrl; return; } catch(e){}
+  }
 })();
 </script>
 
 </head>
+
 <body class="bg-gray-50 text-gray-800">
 
-<!-- In-app overlay (hidden by default). If we detect in-app and external redirect didn't work,
-     we show this to instruct the user to open externally. -->
-<div id="inAppOverlay" class="fixed inset-0 bg-white z-50 flex items-center justify-center p-6 hidden">
-  <div class="max-w-xl text-center">
-    <h2 class="text-2xl font-bold mb-4">Open in your browser</h2>
-    <p class="mb-4 text-gray-600">This page works best in your device's browser (Chrome, Safari). Please open it in your external browser for full functionality.</p>
-    <div class="space-y-3">
-      <a id="openExternalLink" class="inline-block w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold" target="_blank" rel="noreferrer">Open in external browser</a>
-      <button id="dismissInApp" class="w-full px-4 py-3 border rounded-lg">Continue anyway</button>
-    </div>
+<!-- In-App Browser Block Overlay -->
+<div id="inAppBlock" class="fixed inset-0 bg-white z-50 hidden p-8 flex items-center justify-center text-center">
+  <div>
+    <h1 class="text-2xl font-bold mb-4">⚠️ Unsupported Viewer</h1>
+    <p class="text-gray-600 mb-4">
+      This page cannot run inside Messenger or Facebook's internal browser.<br>
+      Please open it in:
+    </p>
+    <div class="font-semibold text-lg">Chrome • Safari • Default Browser</div>
+    <button id="openExternalBtn"
+      class="mt-6 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold">
+      Open in Browser
+    </button>
   </div>
 </div>
 
-<!-- Header -->
+<script>
+(function(){
+  const ua = navigator.userAgent || "";
+  const inApp = /FBAN|FBAV|Instagram|Messenger/i.test(ua);
+  const params = new URLSearchParams(location.search);
+  if(inApp && params.get("external")){
+    // Still in in-app browser → block
+    document.getElementById("inAppBlock").classList.remove("hidden");
+    document.getElementById("openExternalBtn").onclick = ()=> {
+      window.location.href = "googlechrome://" + window.location.href.replace(/^https?:\/\//,'');
+    };
+  }
+})();
+</script>
+
+<!-- HEADER -->
 <header class="bg-white shadow sticky top-0 z-40">
-  <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+  <div class="max-w-6xl mx-auto flex items-center justify-between p-3">
     <div class="flex items-center gap-3">
-      <div class="bg-gradient-to-tr from-blue-600 to-purple-600 text-white rounded-lg p-3">
+      <button id="openNav" class="text-2xl text-gray-700 md:hidden">
+        <i class="fa-solid fa-bars"></i>
+      </button>
+      <div class="bg-gradient-to-tr from-blue-600 to-purple-600 p-3 text-white rounded-lg">
         <i class="fa-solid fa-bolt"></i>
       </div>
       <div>
-        <div class="text-lg font-bold">QuizPro — PDF to Quiz</div>
-        <div class="text-sm text-gray-500">All features included • Responsive • Smart questions</div>
+        <div class="font-bold text-lg">QuizPro — PDF to Quiz</div>
+        <div class="text-xs text-gray-500">Professional • Responsive • Smart</div>
       </div>
     </div>
 
-    <div class="flex items-center gap-3">
-      <div class="px-3 py-2 bg-white rounded-full border flex items-center gap-2">
-        <i class="fa-solid fa-coins text-yellow-500"></i><span id="coinsTop">100</span>
-      </div>
+    <div class="px-3 py-2 bg-white border rounded-full flex items-center gap-2">
+      <i class="fa-solid fa-coins text-yellow-500"></i>
+      <span id="coinsTop">100</span>
     </div>
   </div>
 </header>
 
-<!-- Main -->
-<main class="max-w-6xl mx-auto p-4 grid grid-cols-1 md:grid-cols-[320px_1fr] gap-4">
+<!-- Slide-Out Sidebar Navigator -->
+<aside id="sidebarNav" class="fixed top-0 left-0 bg-white shadow-lg w-64 h-full z-50 p-4 overflow-y-auto">
+  <div class="flex justify-between items-center mb-3">
+    <h3 class="font-semibold">Navigator</h3>
+    <button id="closeNav" class="text-gray-500"><i class="fa-solid fa-xmark"></i></button>
+  </div>
 
-  <!-- Sidebar -->
-  <aside class="bg-white rounded-xl shadow p-4 sticky top-24 h-fit">
-    <h3 class="font-semibold mb-2">Navigator</h3>
-    <div id="questionGrid" class="flex flex-wrap gap-2"></div>
+  <div id="questionGrid" class="grid grid-cols-5 gap-2 mb-4"></div>
 
-    <div class="mt-4 space-y-2">
-      <button id="saveQuizBtn" class="w-full px-3 py-2 bg-blue-600 text-white rounded-lg"><i class="fa-solid fa-save"></i> Save Quiz</button>
-      <button id="exportAllBtn" class="w-full px-3 py-2 bg-gray-100 rounded-lg"><i class="fa-solid fa-download"></i> Export Seeds</button>
-      <button id="clearStorageBtn" class="w-full px-3 py-2 bg-red-100 rounded-lg"><i class="fa-solid fa-trash"></i> Clear Saved</button>
+  <button id="saveQuizBtn" class="w-full px-3 py-2 bg-blue-600 text-white rounded-lg mb-2">
+    <i class="fa-solid fa-save"></i> Save Quiz
+  </button>
+  <button id="exportAllBtn" class="w-full px-3 py-2 bg-gray-100 rounded-lg mb-2">
+    <i class="fa-solid fa-download"></i> Export Seeds
+  </button>
+  <button id="clearStorageBtn" class="w-full px-3 py-2 bg-red-100 rounded-lg">
+    <i class="fa-solid fa-trash"></i> Clear Saved
+  </button>
+
+  <p class="text-xs text-gray-500 mt-4">Saved locally</p>
+</aside>
+
+<script>
+document.getElementById("openNav").onclick = ()=> {
+  document.getElementById("sidebarNav").classList.add("active");
+};
+document.getElementById("closeNav").onclick = ()=> {
+  document.getElementById("sidebarNav").classList.remove("active");
+};
+</script>
+
+<!-- MAIN WRAPPER -->
+<main class="max-w-6xl mx-auto grid md:grid-cols-[1fr_320px] md:gap-6 p-4">
+
+  <!-- LEFT COLUMN -->
+  <section>
+
+    <!-- STATS -->
+    <div class="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-4">
+      <div class="bg-white p-3 text-center rounded shadow">
+        <div class="font-bold" id="currentQ">–</div><div class="text-xs text-gray-500">Current</div>
+      </div>
+      <div class="bg-white p-3 text-center rounded shadow">
+        <div class="font-bold" id="score">0</div><div class="text-xs text-gray-500">Score</div>
+      </div>
+      <div class="bg-white p-3 text-center rounded shadow">
+        <div class="font-bold" id="correctCount">0</div><div class="text-xs text-gray-500">Correct</div>
+      </div>
+      <div class="bg-white p-3 text-center rounded shadow">
+        <div class="font-bold" id="streak">0</div><div class="text-xs text-gray-500">Streak</div>
+      </div>
+      <div class="bg-white p-3 text-center rounded shadow">
+        <div class="font-bold" id="coins">100</div><div class="text-xs text-gray-500">Coins</div>
+      </div>
+      <div class="bg-white p-3 text-center rounded shadow">
+        <div class="font-bold" id="timerVal">–</div><div class="text-xs text-gray-500">Timer</div>
+      </div>
     </div>
 
-    <div class="mt-4 text-sm text-gray-500">
-      Stored locally in your browser. Use Export to download seeds or results.
-    </div>
-  </aside>
+    <!-- UPLOAD CARD -->
+    <div id="uploadCard" class="bg-white rounded-xl shadow p-4 mb-4">
+      <h2 class="font-semibold">Upload PDF</h2>
+      <p class="text-sm text-gray-500">Drop a PDF or click Browse.</p>
 
-  <!-- Main content -->
-  <section class="space-y-4">
+      <div id="dropArea" class="mt-3 border-2 border-dashed border-blue-300 rounded-xl p-6 text-center cursor-pointer">
+        <div class="text-gray-600">Drop PDF here</div>
+        <button id="browseBtn" class="mt-3 px-4 py-2 bg-blue-600 text-white rounded-md">Browse</button>
+        <input id="pdfInput" type="file" accept=".pdf" class="hidden" />
+      </div>
 
-    <!-- Stats -->
-    <div class="grid grid-cols-2 sm:grid-cols-6 gap-3">
-      <div class="bg-white p-3 rounded-lg shadow text-center">
-        <div class="text-lg font-bold" id="currentQ">–</div>
-        <div class="text-xs text-gray-500">Current</div>
+      <div id="fileInfo" class="hidden mt-3 p-3 rounded bg-blue-50 flex justify-between">
+        <div id="fileName" class="font-medium"></div>
+        <div id="fileSize" class="text-sm text-gray-500"></div>
       </div>
-      <div class="bg-white p-3 rounded-lg shadow text-center">
-        <div class="text-lg font-bold" id="score">0</div>
-        <div class="text-xs text-gray-500">Score</div>
-      </div>
-      <div class="bg-white p-3 rounded-lg shadow text-center">
-        <div class="text-lg font-bold" id="correctCount">0</div>
-        <div class="text-xs text-gray-500">Correct</div>
-      </div>
-      <div class="bg-white p-3 rounded-lg shadow text-center">
-        <div class="text-lg font-bold" id="streak">0</div>
-        <div class="text-xs text-gray-500">Streak</div>
-      </div>
-      <div class="bg-white p-3 rounded-lg shadow text-center">
-        <div class="text-lg font-bold" id="coins">100</div>
-        <div class="text-xs text-gray-500">Coins</div>
-      </div>
-      <div class="bg-white p-3 rounded-lg shadow text-center">
-        <div class="text-lg font-bold" id="timerVal">–</div>
-        <div class="text-xs text-gray-500">Timer</div>
-      </div>
-    </div>
 
-    <!-- Upload Card -->
-    <div id="uploadCard" class="bg-white rounded-xl shadow p-4">
-      <div class="flex items-start gap-4">
-        <div class="p-3 rounded-lg bg-blue-50"><i class="fa-solid fa-file-pdf text-2xl text-blue-600"></i></div>
-        <div class="flex-1">
-          <h2 class="text-lg font-semibold">Upload PDF</h2>
-          <p class="text-sm text-gray-500">Drop a PDF or click Browse. We'll extract text and create question seeds.</p>
-
-          <div id="dropArea" class="mt-3 border-2 border-dashed border-blue-200 rounded-xl p-4 text-center cursor-pointer">
-            <div class="text-sm text-gray-600">Drop PDF here</div>
-            <div class="mt-3">
-              <button id="browseBtn" class="px-4 py-2 bg-blue-600 text-white rounded-md">Browse</button>
-              <input id="pdfInput" type="file" accept=".pdf" class="hidden" />
-            </div>
-          </div>
-
-          <div id="fileInfo" class="hidden mt-3 p-3 rounded-md bg-blue-50 flex justify-between items-center">
-            <div class="font-medium" id="fileName"></div>
-            <div class="text-sm text-gray-500" id="fileSize"></div>
-          </div>
-
-          <div id="progressWrapper" class="hidden mt-3">
-            <div class="w-full h-2 bg-gray-200 rounded">
-              <div id="progressBar" class="h-2 bg-blue-600 rounded" style="width:0%"></div>
-            </div>
-            <div id="progressText" class="text-xs text-gray-500 mt-2">Processing…</div>
-          </div>
+      <div id="progressWrapper" class="hidden mt-3">
+        <div class="h-2 bg-gray-200 rounded">
+          <div id="progressBar" class="h-full bg-blue-600 rounded" style="width:0%"></div>
         </div>
+        <div id="progressText" class="text-xs text-gray-500 mt-1">Processing…</div>
       </div>
     </div>
 
-    <!-- Configure Card -->
-    <div id="configureCard" class="bg-white rounded-xl shadow p-4">
-      <h3 class="font-semibold">Configure Generation</h3>
-      <p class="text-sm text-gray-500">Choose how many questions you'd like; the dropdown will adapt to the maximum available from the PDF.</p>
+    <!-- CONFIGURE CARD -->
+    <div id="configureCard" class="bg-white rounded-xl shadow p-4 mb-4">
+      <h3 class="font-semibold">Configure Quiz</h3>
 
-      <div class="grid md:grid-cols-3 gap-3 mt-3">
+      <div class="grid sm:grid-cols-3 gap-3 mt-3">
         <div>
           <label class="text-sm font-medium">Questions</label>
-          <select id="numQuestions" class="mt-1 w-full border rounded-md p-2">
-            <option>5</option><option selected>10</option><option>20</option>
-          </select>
+          <select id="numQuestions" class="mt-1 w-full border rounded p-2"></select>
         </div>
 
         <div>
           <label class="text-sm font-medium">Difficulty</label>
-          <select id="difficulty" class="mt-1 w-full border rounded-md p-2">
-            <option value="mixed">Mixed</option><option value="basic">Basic</option>
-            <option value="intermediate" selected>Intermediate</option><option value="advanced">Advanced</option>
+          <select id="difficulty" class="mt-1 w-full border rounded p-2">
+            <option value="mixed">Mixed</option>
+            <option value="basic">Basic</option>
+            <option value="intermediate" selected>Intermediate</option>
+            <option value="advanced">Advanced</option>
           </select>
         </div>
 
         <div>
           <label class="text-sm font-medium">Focus keywords (comma)</label>
-          <input id="focusAreas" class="mt-1 w-full border rounded-md p-2" placeholder="e.g., biology, taxation" />
+          <input id="focusAreas" class="mt-1 w-full border rounded p-2" placeholder="biology, taxation" />
         </div>
       </div>
 
-      <div class="flex items-center gap-3 mt-4">
-        <button id="genBtn" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-md">Generate Questions</button>
-        <button id="buildStudyBtn" class="px-4 py-2 bg-gray-100 rounded-md">Build Study</button>
-        <div class="ml-auto text-sm text-gray-600">Available seeds: <span id="seedCount">0</span></div>
+      <div class="flex gap-3 mt-4">
+        <button id="genBtn" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-md">
+          Generate
+        </button>
+
+        <button id="buildStudyBtn" class="px-4 py-2 bg-gray-100 rounded-md">Study Preview</button>
+
+        <div class="ml-auto text-sm text-gray-600">
+          Seeds: <span id="seedCount">0</span>
+        </div>
       </div>
     </div>
 
-    <!-- Quiz Card -->
-    <div id="quizCard" class="bg-white rounded-xl shadow p-4 hidden">
-      <div class="flex justify-between items-start">
+    <!-- QUIZ CARD -->
+    <div id="quizCard" class="bg-white rounded-xl shadow p-4 mb-4 hidden">
+      <div class="flex justify-between">
         <div>
-          <h3 class="text-lg font-bold" id="qTitle">Question</h3>
-          <div class="text-sm text-gray-500" id="qIndex">0 / 0</div>
+          <h3 class="text-lg font-bold" id="qTitle"></h3>
+          <div class="text-xs text-gray-500" id="qIndex"></div>
         </div>
 
-        <div class="flex items-center gap-2">
-          <div class="text-sm text-gray-500">Timers:</div>
-          <select id="timerMode" class="border rounded-md p-1">
+        <div class="text-right text-xs text-gray-500">
+          <label>Timer: </label>
+          <select id="timerMode" class="border rounded p-1 text-xs">
             <option value="none">None</option>
             <option value="question" selected>Per Q</option>
             <option value="quiz">Quiz</option>
           </select>
-          <input id="questionTimerInput" type="number" value="30" class="w-20 border rounded-md p-1 ml-2" />
-          <input id="quizTimerInput" type="number" value="300" class="w-24 border rounded-md p-1 ml-2" />
-          <button id="applyTimers" class="px-2 py-1 bg-gray-100 rounded-md">Apply</button>
         </div>
       </div>
 
-      <!-- powerups -->
-      <div class="flex gap-3 mt-4">
+      <div class="flex gap-3 mt-3">
         <button id="pu5050" class="px-3 py-2 bg-gray-100 rounded-md">50:50 <span id="count5050">3</span></button>
         <button id="puHint" class="px-3 py-2 bg-gray-100 rounded-md"><i class="fa-solid fa-lightbulb"></i> <span id="countHint">3</span></button>
         <button id="puSkip" class="px-3 py-2 bg-gray-100 rounded-md">Skip <span id="countSkip">2</span></button>
       </div>
 
       <div id="qText" class="mt-4 text-lg font-semibold"></div>
+
       <div id="options" class="grid gap-3 mt-4"></div>
-      <div id="hint" class="hidden mt-3 p-3 bg-yellow-50 border rounded-md"></div>
+
+      <div id="hint" class="hidden mt-3 p-3 bg-yellow-50 border rounded"></div>
 
       <div class="flex gap-3 mt-4">
         <button id="prevBtn" class="px-3 py-2 bg-gray-100 rounded-md">Prev</button>
@@ -242,8 +259,12 @@
       </div>
     </div>
 
-    <!-- Results -->
-    <div id="resultsCard" class="bg-white rounded-xl shadow p-4 hidden">
+
+
+
+
+<!-- RESULTS CARD -->
+    <div id="resultsCard" class="bg-white rounded-xl shadow p-4 mb-4 hidden">
       <h3 class="text-lg font-bold">Results</h3>
       <div id="resultsSummary" class="mt-2"></div>
       <div id="resultsList" class="mt-3 space-y-2"></div>
@@ -255,80 +276,223 @@
       </div>
     </div>
 
-    <!-- Saved -->
-    <div id="savedCard" class="bg-white rounded-xl shadow p-4 hidden">
+    <!-- SAVED CARD -->
+    <div id="savedCard" class="bg-white rounded-xl shadow p-4 mb-4 hidden">
       <h3 class="text-lg font-bold">Saved Quizzes</h3>
       <div id="quizList" class="mt-3 space-y-3"></div>
     </div>
 
   </section>
+
+  <!-- RIGHT COLUMN (small controls) -->
+  <aside class="hidden md:block">
+    <div class="bg-white rounded-xl shadow p-4 sticky top-24">
+      <h4 class="font-semibold mb-2">Controls</h4>
+      <button id="openFull" class="w-full mb-2 px-3 py-2 bg-gray-100 rounded">Open Fullscreen</button>
+      <button id="viewSavedBtn" class="w-full mb-2 px-3 py-2 bg-blue-50 rounded">View Saved</button>
+      <button id="viewResultsBtn" class="w-full px-3 py-2 bg-blue-50 rounded">View Results</button>
+    </div>
+  </aside>
+
 </main>
 
-<!-- shop modal, save modal simplified (kept) -->
-<div id="shopModal" class="hidden fixed inset-0 bg-black bg-opacity-40 z-50 items-center justify-center p-4">
-  <div class="bg-white rounded-lg p-4 max-w-md mx-auto">
+<!-- Study modal (professional term + definition) -->
+<div id="studyModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black bg-opacity-40">
+  <div class="bg-white rounded-lg max-w-4xl w-full p-4 max-h-[80vh] overflow-auto">
     <div class="flex justify-between items-center">
-      <h4 class="font-semibold">Power-up Store</h4>
+      <h3 class="font-semibold">Study Preview — Terms & Definitions</h3>
+      <button id="closeStudyModal" class="text-gray-500">Close</button>
+    </div>
+    <div id="studyContent" class="mt-3 space-y-4"></div>
+  </div>
+</div>
+
+<!-- Shop & Save Modals (kept minimal) -->
+<div id="shopModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black bg-opacity-40">
+  <div class="bg-white rounded-lg p-4 max-w-md w-full">
+    <div class="flex justify-between items-center">
+      <h4 class="font-semibold">Store</h4>
       <button id="closeShop" class="text-gray-500">Close</button>
     </div>
-    <div class="mt-3 grid grid-cols-1 gap-3">
-      <div class="p-3 border rounded-md flex justify-between items-center">
-        <div>
-          <div class="font-semibold">50:50</div><div class="text-sm text-gray-500">Remove two wrong options</div>
-        </div>
-        <button class="shopBuy px-3 py-1 bg-blue-600 text-white rounded-md" data-power="5050" data-price="80">Buy 80</button>
+    <div class="mt-3 space-y-3">
+      <div class="flex justify-between items-center p-3 border rounded">
+        <div><b>50:50</b><div class="text-sm text-gray-500">Remove two wrong options</div></div>
+        <button class="shopBuy px-3 py-1 bg-blue-600 text-white rounded" data-power="5050" data-price="80">Buy 80</button>
       </div>
-      <div class="p-3 border rounded-md flex justify-between items-center">
-        <div>
-          <div class="font-semibold">Hint</div><div class="text-sm text-gray-500">Reveal a hint</div>
-        </div>
-        <button class="shopBuy px-3 py-1 bg-blue-600 text-white rounded-md" data-power="hint" data-price="60">Buy 60</button>
+      <div class="flex justify-between items-center p-3 border rounded">
+        <div><b>Hint</b><div class="text-sm text-gray-500">Reveal a hint</div></div>
+        <button class="shopBuy px-3 py-1 bg-blue-600 text-white rounded" data-power="hint" data-price="60">Buy 60</button>
       </div>
-      <div class="p-3 border rounded-md flex justify-between items-center">
-        <div>
-          <div class="font-semibold">Skip</div><div class="text-sm text-gray-500">Skip a question</div>
-        </div>
-        <button class="shopBuy px-3 py-1 bg-blue-600 text-white rounded-md" data-power="skip" data-price="50">Buy 50</button>
+      <div class="flex justify-between items-center p-3 border rounded">
+        <div><b>Skip</b><div class="text-sm text-gray-500">Skip a question</div></div>
+        <button class="shopBuy px-3 py-1 bg-blue-600 text-white rounded" data-power="skip" data-price="50">Buy 50</button>
       </div>
     </div>
   </div>
 </div>
 
-<div id="saveModal" class="hidden fixed inset-0 bg-black bg-opacity-40 z-50 items-center justify-center p-4">
-  <div class="bg-white rounded-lg p-4 max-w-md mx-auto">
+<div id="saveModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black bg-opacity-40">
+  <div class="bg-white rounded-lg p-4 max-w-md w-full">
     <div class="flex justify-between items-center">
       <h4 class="font-semibold">Save Quiz</h4>
       <button id="closeSave" class="text-gray-500">Close</button>
     </div>
+
     <div class="mt-3 space-y-2">
       <label class="text-sm font-medium">Title</label>
-      <input id="quizTitle" class="w-full border rounded-md p-2" placeholder="My Quiz" />
+      <input id="quizTitle" class="w-full border rounded p-2" placeholder="Quiz Title" />
       <label class="text-sm font-medium">Category</label>
-      <select id="quizCategory" class="w-full border rounded-md p-2">
+      <select id="quizCategory" class="w-full border rounded p-2">
         <option>General</option><option>Education</option><option>Science</option><option>Other</option>
       </select>
+
       <div class="flex gap-2 mt-3">
-        <button id="saveToLocal" class="px-3 py-2 bg-blue-600 text-white rounded-md">Save</button>
-        <button id="cancelSave" class="px-3 py-2 bg-gray-100 rounded-md">Cancel</button>
+        <button id="saveToLocal" class="px-3 py-2 bg-blue-600 text-white rounded">Save</button>
+        <button id="cancelSave" class="px-3 py-2 bg-gray-100 rounded">Cancel</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- toast -->
-<div id="toast" class="fixed top-6 right-6 hidden bg-white shadow-md rounded-lg p-3 z-50"></div>
+<!-- Toast -->
+<div id="toast" class="fixed top-6 right-6 hidden bg-white rounded shadow px-4 py-2 z-50"></div>
 
-<!-- Sounds -->
+<!-- Audio -->
 <audio id="correctSound" src="https://www.soundjay.com/buttons/sounds/button-1.mp3" preload="auto"></audio>
 <audio id="incorrectSound" src="https://www.soundjay.com/buttons/sounds/button-10.mp3" preload="auto"></audio>
 <audio id="coinSound" src="https://www.soundjay.com/buttons/sounds/button-7.mp3" preload="auto"></audio>
 <audio id="powerSound" src="https://www.soundjay.com/buttons/sounds/button-4.mp3" preload="auto"></audio>
 
 <script>
-/* =========================
-   App state
-========================= */
-const App = {
+/* ---------------------------
+   Helpers & State (completes Part 1)
+--------------------------- */
+const $ = s => document.querySelector(s);
+const el = (t, c, txt) => { const e = document.createElement(t); if(c) e.className = c; if(txt!==undefined) e.textContent = txt; return e; };
+
+function toast(msg, ms=1600){
+  const t = $('#toast'); t.textContent = msg; t.classList.remove('hidden');
+  setTimeout(()=> t.classList.add('hidden'), ms);
+}
+function playSound(sel){ try{ const a = document.querySelector(sel); if(a){ a.currentTime=0; a.play().catch(()=>{}); } }catch(e){} }
+
+/* ---------------------------
+   Dropdown bug fix: ensure proper default populated
+   Called after seeds built.
+--------------------------- */
+function ensureNumDropdown(defaultCount=10){
+  const sel = $('#numQuestions');
+  sel.innerHTML = '';
+  const max = Math.max(1, Math.min(50, defaultCount));
+  for(let i = max; i>=1; i--){
+    const o = document.createElement('option'); o.value = i; o.textContent = i;
+    sel.appendChild(o);
+  }
+  sel.value = Math.min(10, max);
+}
+
+/* ---------------------------
+   Seed/Question generation code (robust)
+   Note: These functions mirror Part1 but finalize behavior here
+--------------------------- */
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; }
+function escapeReg(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+
+function buildSeedsFromText(){
+  const text = (window.App && App.pdfText) ? App.pdfText : '';
+  if(!text || text.trim().length < 20){ toast('No text found in PDF'); return; }
+  // improved splitting and scoring
+  const raw = text.replace(/\s+/g,' ').split(/(?<=[.?!])\s+/).map(s=>s.trim()).filter(s=>s.length>30);
+  const patterns = [/\b(is|are|refers to|defined as|consists of|composed of)\b/i, /:\s/, /\b(e\.g\.|for example|such as)\b/i];
+  let seeds = raw.filter(s => patterns.some(p=>p.test(s)));
+  if(seeds.length < 12) seeds = seeds.concat(raw.slice(0,200));
+  // dedupe
+  const seen = new Set(); const unique = [];
+  for(const s of seeds){
+    const k = s.toLowerCase().replace(/[^a-z0-9 ]+/g,'').slice(0,120);
+    if(!seen.has(k)){ seen.add(k); unique.push(s); }
+  }
+  App.seeds = unique;
+  $('#seedCount').textContent = App.seeds.length;
+  rebuildNumDropdown(App.seeds.length);
+}
+
+/* rebuildNumDropdown (reliable) */
+function rebuildNumDropdown(max){
+  const sel = $('#numQuestions');
+  sel.innerHTML = '';
+  max = Math.max(1, Math.min(100, Math.floor(max)));
+  const limit = Math.min(50, max);
+  for(let i=limit; i>=1; i--){
+    const o = document.createElement('option'); o.value = i; o.textContent = i;
+    sel.appendChild(o);
+  }
+  // choose sensible default
+  sel.value = Math.min(10, limit);
+}
+
+/* Generate questions */
+function generateQuestionsFromSeeds(requested, focusArr, difficulty){
+  requested = Math.max(1, parseInt(requested) || 10);
+  focusArr = (focusArr || []).map(s=>s.trim()).filter(Boolean).map(s=>s.toLowerCase());
+  const avail = App.seeds.slice();
+  const out = [];
+  const used = new Set();
+
+  function pickKeyWord(sentence){
+    const words = sentence.split(/\s+/).map(w=>w.replace(/[^a-zA-Z]+/g,'')).filter(Boolean);
+    const candidates = words.filter(w=> w.length>4 && /^[A-Za-z]+$/.test(w) && !/^(the|this|that|there|which|where)$/i.test(w));
+    if(candidates.length===0) return null;
+    // prefer focus
+    for(const fk of focusArr){
+      const match = candidates.find(c => c.toLowerCase().includes(fk));
+      if(match) return match;
+    }
+    // prefer capitalized
+    const cap = candidates.find(c => /^[A-Z]/.test(c));
+    if(cap) return cap;
+    candidates.sort((a,b)=> b.length - a.length);
+    return candidates[0];
+  }
+
+  function genDistractors(correct, sentence){
+    const base = [];
+    const words = sentence.split(/\s+/).map(w=>w.replace(/[^a-zA-Z]+/g,'')).filter(w=>w.length>3 && w.toLowerCase() !== correct.toLowerCase());
+    for(const w of words){
+      if(base.length>=3) break;
+      if(!base.includes(w)) base.push(w);
+    }
+    if(base.length < 3){
+      base.push(correct + ' (alt)');
+      base.push('Another concept');
+      base.push('A common alternative');
+    }
+    return [...new Set(base)].slice(0,3);
+  }
+
+  while(out.length < requested && avail.length > 0){
+    const idx = Math.floor(Math.random()*Math.min(12, avail.length));
+    const seed = avail.splice(idx,1)[0];
+    const keyword = pickKeyWord(seed);
+    if(!keyword) continue;
+    const qtext = seed.replace(new RegExp(`\\b${escapeReg(keyword)}\\b`, 'i'), '_____');
+    const distractors = genDistractors(keyword, seed);
+    const options = shuffle([keyword, ...distractors]).slice(0,4);
+    const ans = options.findIndex(o=> o === keyword);
+    const norm = qtext.toLowerCase().replace(/[^a-z0-9 ]+/g,'').slice(0,120);
+    if(used.has(norm)) continue;
+    used.add(norm);
+    out.push({question: qtext, options, ans, hint: `Key: ${keyword}`, context: seed});
+  }
+  return out;
+}
+
+/* ---------------------------
+   Full JS: connect events (completes behavior)
+--------------------------- */
+
+/* Initialize App state */
+window.App = {
   pdfText: '',
   seeds: [],
   questions: [],
@@ -343,54 +507,13 @@ const App = {
   timers: { mode: 'question', quiz: 300, question: 30, interval: null, quizRemaining: null, questionRemaining: null }
 };
 
-/* =========================
-   Utility helpers
-========================= */
-const $ = s => document.querySelector(s);
-function el(tag,cls,txt){ const e=document.createElement(tag); if(cls) e.className=cls; if(txt!==undefined) e.textContent=txt; return e; }
-function toast(msg,ms=1800){ $('#toast').textContent = msg; $('#toast').classList.remove('hidden'); setTimeout(()=>$('#toast').classList.add('hidden'), ms); }
-function play(id){ try{ const a = document.querySelector(id); if(a){ a.currentTime = 0; a.play().catch(()=>{}); } }catch(e){} }
-
-/* =========================
-   In-app detection fallback display
-========================= */
-(function showInAppOverlayIfNeeded(){
-  try {
-    const ua = navigator.userAgent || '';
-    const inApp = /FBAN|FBAV|Instagram|Messenger|Line\//i.test(ua);
-    const params = new URLSearchParams(location.search);
-    const overlay = $('#inAppOverlay');
-    if(inApp && !params.has('openExternalBrowser')){
-      // set link to current location with param (so attempting open will not loop infinitely)
-      $('#openExternalLink').href = location.href + (location.search ? '&' : '?') + 'openExternalBrowser=1';
-      overlay.classList.remove('hidden');
-      // wire dismiss
-      $('#dismissInApp').addEventListener('click', ()=> overlay.classList.add('hidden'));
-    } else {
-      if(overlay) overlay.classList.add('hidden');
-    }
-  } catch(e){ /* ignore */ }
-})();
-
-/* =========================
-   PDF upload & extract
-========================= */
+/* Wire upload */
 $('#browseBtn').addEventListener('click', ()=> $('#pdfInput').click());
-$('#pdfInput').addEventListener('change', (e)=> { if(e.target.files[0]) loadPDF(e.target.files[0]); });
+$('#pdfInput').addEventListener('change', e => { if(e.target.files[0]) loadPDF(e.target.files[0]); });
 
-['dragenter','dragover'].forEach(evt => {
-  $('#dropArea').addEventListener(evt, (e)=>{ e.preventDefault(); $('#dropArea').classList.add('bg-blue-100'); });
-});
-['dragleave','drop'].forEach(evt => {
-  $('#dropArea').addEventListener(evt, (e)=>{ e.preventDefault(); $('#dropArea').classList.remove('bg-blue-100'); });
-});
-$('#dropArea').addEventListener('drop', (e)=> {
-  e.preventDefault();
-  const f = e.dataTransfer.files && e.dataTransfer.files[0];
-  if(!f) return;
-  if(f.type !== 'application/pdf'){ toast('Please drop a PDF'); return; }
-  loadPDF(f);
-});
+['dragenter','dragover'].forEach(ev => $('#dropArea').addEventListener(ev, e=>{ e.preventDefault(); $('#dropArea').classList.add('bg-blue-100'); }));
+['dragleave','drop'].forEach(ev => $('#dropArea').addEventListener(ev, e=>{ e.preventDefault(); $('#dropArea').classList.remove('bg-blue-100'); }));
+$('#dropArea').addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer.files && e.dataTransfer.files[0]; if(f && f.type==='application/pdf') loadPDF(f); else toast('Please drop a PDF'); });
 
 async function loadPDF(file){
   $('#fileInfo').classList.remove('hidden');
@@ -398,156 +521,52 @@ async function loadPDF(file){
   $('#fileSize').textContent = Math.round(file.size/1024) + ' KB';
   $('#progressWrapper').classList.remove('hidden');
   $('#progressBar').style.width = '4%';
-  $('#progressText').textContent = 'Loading...';
+  $('#progressText').textContent = 'Reading...';
 
   try{
     const buffer = await file.arrayBuffer();
     const loadingTask = pdfjsLib.getDocument({data: buffer});
     const pdf = await loadingTask.promise;
-    const total = pdf.numPages;
-    let fullText = '';
-    for(let i=1;i<=total;i++){
+    let allText = '';
+    for(let i=1;i<=pdf.numPages;i++){
       const page = await pdf.getPage(i);
       const content = await page.getTextContent();
       const pageText = content.items.map(it=>it.str).join(' ');
-      fullText += '\n\n' + pageText;
-      $('#progressBar').style.width = Math.round((i/total)*100) + '%';
-      $('#progressText').textContent = `Extracting page ${i} / ${total}`;
-      await new Promise(r=>setTimeout(r, 10)); // slight yield
+      allText += '\n\n' + pageText;
+      $('#progressBar').style.width = Math.round((i/pdf.numPages)*100) + '%';
+      $('#progressText').textContent = `Extracting page ${i} / ${pdf.numPages}`;
+      await new Promise(r=>setTimeout(r,10));
     }
-    App.pdfText = fullText.trim();
+    App.pdfText = allText;
     $('#progressBar').style.width = '100%';
     $('#progressText').textContent = 'Extraction complete';
-    toast('PDF loaded');
+    toast('PDF extracted');
     buildSeedsFromText();
   } catch(err){
-    console.error(err);
-    toast('Failed to load PDF');
-    $('#progressWrapper').classList.add('hidden');
+    console.error(err); toast('Failed to read PDF'); $('#progressWrapper').classList.add('hidden');
   }
 }
 
-/* =========================
-   Build seeds (improved)
-========================= */
-function buildSeedsFromText(){
-  const t = (App.pdfText || '').replace(/\s+/g,' ').trim();
-  if(!t){ toast('No text extracted'); return; }
+/* Fix: ensure dropdown is initially populated even before PDF */
+rebuildNumDropdown(10); // default
 
-  // sentence split
-  const sentences = t.split(/(?<=[.?!])\s+/).map(s=>s.trim()).filter(s=>s.length>30);
-
-  // preference for definition-like sentences
-  const patterns = [/\b(is|are|means|refers to|defined as|consists of|composed of|characterized by)\b/i, /:\s/, /\b(e\.g\.|for example)\b/i];
-  let seeds = sentences.filter(s => patterns.some(p=>p.test(s)));
-
-  if(seeds.length < 8){
-    // add other long sentences (up to 200)
-    seeds = seeds.concat(sentences.slice(0,200));
+/* Generate button */
+$('#genBtn').addEventListener('click', ()=>{
+  if(!App.seeds || App.seeds.length === 0){ buildSeedsFromText(); if(!App.seeds.length) return toast('No content to generate from'); }
+  const desired = parseInt($('#numQuestions').value) || 10;
+  const focus = ($('#focusAreas').value || '').split(',').map(s=>s.trim()).filter(Boolean);
+  const difficulty = $('#difficulty').value || 'mixed';
+  if(App.seeds.length < desired){
+    rebuildNumDropdown(App.seeds.length);
+    return toast(`Only ${App.seeds.length} seeds available. Dropdown adjusted.`);
   }
+  const qs = generateQuestionsFromSeeds(desired, focus, difficulty);
+  if(!qs || qs.length===0) return toast('Could not generate questions');
+  if(qs.length < desired){ rebuildNumDropdown(qs.length); toast(`Only ${qs.length} questions could be formed`); }
+  startQuizWith(qs);
+});
 
-  // dedupe by normalized substring
-  const seen = new Set();
-  const unique = [];
-  for(const s of seeds){
-    const key = s.toLowerCase().replace(/[^a-z0-9 ]+/g,'').slice(0,120);
-    if(!seen.has(key)){ seen.add(key); unique.push(s); }
-  }
-
-  App.seeds = unique;
-  $('#seedCount').textContent = App.seeds.length;
-  rebuildNumDropdown(App.seeds.length);
-}
-
-/* Rebuild dropdown to reflect available seeds */
-function rebuildNumDropdown(max){
-  const sel = $('#numQuestions');
-  sel.innerHTML = '';
-  max = Math.max(1, Math.min(100, Math.floor(max)));
-  for(let i = Math.min(50,max); i>=1; i--){
-    const o = document.createElement('option'); o.value = i; o.textContent = i + (i===1?' item':' items');
-    sel.appendChild(o);
-  }
-}
-
-/* =========================
-   Question generation (smarter)
-========================= */
-function generateQuestionsFromSeeds(requestedCount, focusKeywords=[], difficulty='mixed'){
-  requestedCount = Math.max(1, Math.floor(requestedCount));
-  focusKeywords = (focusKeywords || []).map(s=>s.trim()).filter(Boolean).map(s=>s.toLowerCase());
-  const avail = App.seeds.slice();
-  const generated = [];
-  const used = new Set();
-
-  function pickImportantWord(sentence){
-    const words = sentence.split(/\s+/).map(w=>w.replace(/^[^a-zA-Z]+|[^a-zA-Z]+$/g,'')).filter(Boolean);
-    // filter candidates
-    const candidates = words.filter(w=>w.length>4 && /^[A-Za-z]+$/.test(w) && !/^(the|this|that|there|which|where|while|with)$/i.test(w));
-    if(candidates.length===0) return null;
-    // prefer focus matches
-    for(const fk of focusKeywords){
-      const m = candidates.find(c=>c.toLowerCase().includes(fk));
-      if(m) return m;
-    }
-    // prefer capitalized (proper noun) or longest
-    const cap = candidates.find(c => /^[A-Z]/.test(c));
-    if(cap) return cap;
-    candidates.sort((a,b)=>b.length - a.length);
-    return candidates[0] || null;
-  }
-
-  function generateDistractors(correct, sentence){
-    const base = [];
-    // Use other words from sentence as plausible distractors
-    const words = sentence.split(/\s+/).map(w=>w.replace(/[^a-zA-Z]+/g,'')).filter(w=>w.length>3);
-    const extras = [...new Set(words.filter(w=> w.toLowerCase() !== correct.toLowerCase()))].slice(0,5);
-    extras.forEach(e=> base.push(e));
-    // add general distractors if not enough
-    if(base.length < 3){
-      base.push(correct + ' (alt)');
-      base.push('A related concept');
-      base.push('Not the correct answer');
-    }
-    // trim to unique
-    const uniq = [...new Set(base)].slice(0,3);
-    return uniq;
-  }
-
-  // Generate until requestedCount or seeds exhausted
-  while(generated.length < requestedCount && avail.length > 0){
-    // pick a seed (random from top chunk to favor earlier)
-    const idx = Math.floor(Math.random()*Math.min(12, avail.length));
-    const seed = avail.splice(idx,1)[0];
-    const word = pickImportantWord(seed);
-    if(!word) continue;
-
-    // create question text by blanking out the word (first occurrence, case-insensitive)
-    const qtext = seed.replace(new RegExp(`\\b${escapeReg(word)}\\b`, 'i'), '_____');
-
-    // make distractors
-    const distractors = generateDistractors(word, seed);
-
-    const options = shuffleArray([word, ...distractors]).slice(0,4);
-    const ansIndex = options.findIndex(o=> o === word);
-
-    // dedupe question by normalized qtext
-    const norm = qtext.toLowerCase().replace(/[^a-z0-9 ]+/g,'').slice(0,120);
-    if(used.has(norm)) continue;
-    used.add(norm);
-
-    generated.push({ question: qtext, options, ans: ansIndex, hint: `Related word: ${word}`, context: seed });
-  }
-
-  return generated;
-}
-
-function escapeReg(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
-function shuffleArray(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
-
-/* =========================
-   Quiz flow
-========================= */
+/* Start quiz helper */
 function startQuizWith(questions){
   App.questions = questions.slice();
   App.userAnswers = {};
@@ -556,80 +575,72 @@ function startQuizWith(questions){
   App.score = 0; App.correctCount = 0; App.streak = 0;
   $('#quizCard').classList.remove('hidden');
   $('#resultsCard').classList.add('hidden');
-  buildNavigator();
+  $('#savedCard').classList.add('hidden');
+  buildNavigatorUI();
   loadQuestion(0);
   startTimers();
-  updateStats();
-  toast(`Quiz started: ${questions.length} items`);
+  updatePowerupUI();
+  toast(`Quiz started (${questions.length})`);
 }
 
-function buildNavigator(){
+/* Navigator UI builder */
+function buildNavigatorUI(){
   const grid = $('#questionGrid'); grid.innerHTML = '';
   App.questions.forEach((q,i)=>{
-    const b = el('button','px-2 py-1 bg-gray-100 rounded', String(i+1));
-    b.addEventListener('click', ()=> loadQuestion(i));
+    const b = el('button','p-2 rounded bg-gray-100 text-sm', String(i+1));
+    b.addEventListener('click', ()=> { loadQuestion(i); document.getElementById('sidebarNav').classList.remove('active'); });
     grid.appendChild(b);
   });
-  refreshNavigatorStates();
+  refreshNavigator();
 }
-
-function refreshNavigatorStates(){
+function refreshNavigator(){
   const nodes = $('#questionGrid').children;
-  [...nodes].forEach((n, idx)=>{
-    if(App.userAnswers[idx] !== undefined) n.classList.add('bg-green-100');
-    else n.classList.remove('bg-green-100');
-    if(idx === App.currentIndex) n.classList.add('ring-2','ring-blue-200'); else n.classList.remove('ring-2','ring-blue-200');
+  [...nodes].forEach((n,i)=>{
+    n.classList.toggle('bg-green-100', App.userAnswers[i] !== undefined);
+    n.classList.toggle('ring-2', i === App.currentIndex);
   });
 }
 
+/* Load question */
 function loadQuestion(i){
-  if(i<0 || i>=App.questions.length) return;
+  if(i<0||i>=App.questions.length) return;
   App.currentIndex = i;
   const q = App.questions[i];
   $('#qTitle').textContent = `Question ${i+1}`;
   $('#qIndex').textContent = `${i+1} / ${App.questions.length}`;
   $('#qText').textContent = q.question;
-
-  const opts = $('#options'); opts.innerHTML = '';
-  q.options.forEach((o, idx)=>{
-    const d = el('div','p-3 border rounded-lg bg-white cursor-pointer', '');
-    d.innerHTML = `<strong class="mr-2">${String.fromCharCode(65+idx)}.</strong> <span>${o}</span>`;
+  const optBox = $('#options'); optBox.innerHTML = '';
+  q.options.forEach((opt, idx)=>{
+    const d = el('div','p-3 border rounded cursor-pointer bg-white', '');
+    d.innerHTML = `<strong class="mr-2">${String.fromCharCode(65+idx)}.</strong> ${opt}`;
     d.addEventListener('click', ()=> selectAnswer(idx));
-    opts.appendChild(d);
+    optBox.appendChild(d);
   });
-
   $('#hint').classList.add('hidden');
   if(App.userAnswers[i] !== undefined) showAnswerState(App.userAnswers[i]);
-  refreshNavigatorStates();
-  updateStats();
+  refreshNavigator();
+  updatePowerupUI();
   resetQuestionTimer();
 }
 
+/* Select answer */
 function selectAnswer(choice){
-  const idx = App.currentIndex;
-  if(App.userAnswers[idx] !== undefined) return;
-  App.userAnswers[idx] = choice;
-  const q = App.questions[idx];
+  const i = App.currentIndex; if(App.userAnswers[i] !== undefined) return;
+  App.userAnswers[i] = choice;
+  const q = App.questions[i];
   const correct = (choice === q.ans);
   if(correct){
-    App.correctCount++;
-    App.streak++;
-    App.score += 100 + Math.max(0, App.streak-1) * 10;
-    App.coins += 10;
-    play('#correctSound');
-    toast('Correct +10 coins');
-  } else {
-    App.streak = 0;
-    play('#incorrectSound');
-    toast('Incorrect');
-  }
+    App.correctCount++; App.streak++; App.score += 100 + Math.max(0, App.streak-1) * 10; App.coins += 10; playSound('#correctSound'); toast('Correct +10 coins');
+  } else { App.streak = 0; playSound('#incorrectSound'); toast('Incorrect'); }
   showAnswerState(choice);
-  updateStats();
+  refreshNavigator();
+  updatePowerupUI();
 }
 
+/* show answer state */
 function showAnswerState(chosen){
   const q = App.questions[App.currentIndex];
-  const opts = Array.from(document.querySelectorAll('#options > div'));
+  const opts = Array.from($('#options').children);
   opts.forEach((o, idx)=>{
     o.classList.remove('option-correct','option-wrong','fade');
     if(idx === q.ans) o.classList.add('option-correct');
@@ -638,7 +649,7 @@ function showAnswerState(chosen){
   });
 }
 
-/* navigation */
+/* next/prev/submit */
 $('#nextBtn').addEventListener('click', ()=> loadQuestion(Math.min(App.currentIndex+1, App.questions.length-1)));
 $('#prevBtn').addEventListener('click', ()=> loadQuestion(Math.max(App.currentIndex-1, 0)));
 $('#submitBtn').addEventListener('click', ()=> {
@@ -646,98 +657,67 @@ $('#submitBtn').addEventListener('click', ()=> {
   submitQuiz();
 });
 
-/* finish & results */
+/* submit quiz */
 function submitQuiz(){
   stopAllTimers();
   const total = App.questions.length;
   const correct = App.correctCount;
   const percent = Math.round((correct/total)*100);
-
-  $('#resultsSummary').innerHTML = `<div class="p-3 bg-blue-50 rounded-md"><strong>Score:</strong> ${App.score} • <strong>Correct:</strong> ${correct}/${total} • <strong>${percent}%</strong></div>`;
+  $('#resultsSummary').innerHTML = `<div class="p-3 bg-blue-50 rounded"><strong>Score:</strong> ${App.score} • <strong>Correct:</strong> ${correct}/${total} • <strong>${percent}%</strong></div>`;
   const list = $('#resultsList'); list.innerHTML = '';
   App.questions.forEach((q,i)=>{
     const chosen = App.userAnswers[i];
     const isCorrect = chosen === q.ans;
-    const it = el('div','p-3 rounded-md', '');
-    it.classList.add(isCorrect?'bg-green-50':'bg-red-50');
-    it.innerHTML = `<div class="font-semibold">${i+1}. ${q.question}</div>
-      <div class="text-sm text-gray-700 mt-2">${q.options.map((op,idx)=>`<div>${String.fromCharCode(65+idx)}. ${op}${idx===q.ans?' ✅':''}${idx===chosen && !isCorrect?' ✖':''}</div>`).join('')}</div>
-      ${q.hint? `<div class="mt-2 text-xs text-gray-600 bg-gray-100 p-2 rounded">${q.hint}</div>` : ''}`;
-    list.appendChild(it);
+    const item = el('div','p-3 rounded', '');
+    item.classList.add(isCorrect ? 'bg-green-50' : 'bg-red-50');
+    item.innerHTML = `<div class="font-semibold">${i+1}. ${q.question}</div>
+      <div class="text-sm text-gray-700 mt-2">${q.options.map((op,idx)=>`<div>${String.fromCharCode(65+idx)}. ${op} ${idx===q.ans?'✅':''} ${idx===chosen && !isCorrect?'❌':''}</div>`).join('')}</div>
+      ${q.hint ? `<div class="mt-2 text-xs text-gray-600 p-2 bg-gray-100 rounded">${q.hint}</div>` : ''}`;
+    list.appendChild(item);
   });
-
   $('#quizCard').classList.add('hidden');
   $('#resultsCard').classList.remove('hidden');
-
-  if(percent >= 80){ play('#powerSound'); confettiBurst(); toast('Great job!'); }
+  if(percent >= 80){ playSound('#powerSound'); confettiBurst(); toast('Great job!'); }
 }
 
-/* =========================
-   Powerups & Shop
-========================= */
-function setPowerupDisplays(){
-  $('#count5050').textContent = App.powerups['5050'];
-  $('#countHint').textContent = App.powerups['hint'];
-  $('#countSkip').textContent = App.powerups['skip'];
-  $('#coins').textContent = App.coins;
-  $('#coinsTop').textContent = App.coins;
-  $('#score').textContent = App.score;
-  $('#correctCount').textContent = App.correctCount;
-  $('#streak').textContent = App.streak;
-  $('#currentQ').textContent = (App.currentIndex + 1) || '—';
-}
-
+/* powerups */
 $('#pu5050').addEventListener('click', ()=>{
   if(App.powerups['5050'] <= 0){ toast('No 50:50 left'); return; }
   const q = App.questions[App.currentIndex];
-  const opts = Array.from(document.querySelectorAll('#options > div'));
-  const wrongIdx = opts.map((o,i)=>i).filter(i=> i !== q.ans);
-  shuffleArray(wrongIdx).slice(0,2).forEach(i=>{ opts[i].classList.add('fade'); opts[i].onclick = null; });
-  App.powerups['5050']--; setPowerupDisplays(); play('#powerSound');
+  const opts = Array.from($('#options').children);
+  const wrongs = opts.map((o,i)=>i).filter(i=> i !== q.ans);
+  shuffle(wrongs).slice(0,2).forEach(i=>{ opts[i].classList.add('fade'); opts[i].onclick = null; });
+  App.powerups['5050']--; updatePowerupUI(); playSound('#powerSound');
 });
-
 $('#puHint').addEventListener('click', ()=>{
   if(App.powerups.hint <= 0){ toast('No hints left'); return; }
   $('#hint').textContent = '💡 ' + (App.questions[App.currentIndex].hint || 'Review the context');
-  $('#hint').classList.remove('hidden');
-  App.powerups.hint--; setPowerupDisplays(); play('#powerSound');
+  $('#hint').classList.remove('hidden'); App.powerups.hint--; updatePowerupUI(); playSound('#powerSound');
 });
-
 $('#puSkip').addEventListener('click', ()=>{
   if(App.powerups.skip <= 0){ toast('No skips left'); return; }
-  App.skipped.add(App.currentIndex);
-  App.powerups.skip--; setPowerupDisplays();
-  loadQuestion(Math.min(App.currentIndex+1, App.questions.length-1));
+  App.skipped.add(App.currentIndex); App.powerups.skip--; updatePowerupUI(); loadQuestion(Math.min(App.currentIndex+1, App.questions.length-1));
 });
+function updatePowerupUI(){ $('#count5050').textContent = App.powerups['5050']; $('#countHint').textContent = App.powerups['hint']; $('#countSkip').textContent = App.powerups['skip']; $('#coins').textContent = App.coins; $('#coinsTop').textContent = App.coins; $('#score').textContent = App.score; $('#correctCount').textContent = App.correctCount; $('#streak').textContent = App.streak; $('#currentQ').textContent = App.currentIndex+1 || '—'; }
 
-/* Shop (simple) */
-$('#closeShop')?.addEventListener('click', ()=> $('#shopModal').classList.add('hidden'));
-document.querySelectorAll('.shopBuy').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    const price = parseInt(btn.dataset.price);
-    const power = btn.dataset.power;
+/* shop */
+$('#coinsTop').addEventListener('click', ()=> $('#shopModal').classList.remove('hidden'));
+$('#closeShop').addEventListener('click', ()=> $('#shopModal').classList.add('hidden'));
+document.querySelectorAll('.shopBuy').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    const price = parseInt(b.dataset.price); const power = b.dataset.power;
     if(App.coins < price){ toast('Not enough coins'); return; }
-    App.coins -= price;
-    App.powerups[power] = (App.powerups[power] || 0) + 1;
-    setPowerupDisplays();
-    $('#shopModal').classList.add('hidden');
-    play('#coinSound'); toast('Purchase successful');
+    App.coins -= price; App.powerups[power] = (App.powerups[power]||0) + 1; updatePowerupUI(); $('#shopModal').classList.add('hidden'); playSound('#coinSound'); toast('Bought');
   });
 });
-/* Open shop on click of coinsTop */
-$('#coinsTop').addEventListener('click', ()=> $('#shopModal').classList.remove('hidden'));
 
-/* =========================
-   Timers
-========================= */
+/* timers */
 $('#applyTimers').addEventListener('click', ()=>{
   App.timers.mode = $('#timerMode').value;
-  App.timers.question = Math.max(5, parseInt($('#questionTimerInput').value) || 30);
-  App.timers.quiz = Math.max(10, parseInt($('#quizTimerInput').value) || 300);
-  startTimers();
-  toast('Timers updated');
+  App.timers.question = Math.max(5, parseInt($('#questionTimerInput') ? $('#questionTimerInput').value : 30) || 30);
+  App.timers.quiz = Math.max(10, parseInt($('#quizTimerInput') ? $('#quizTimerInput').value : 300) || 300);
+  startTimers(); toast('Timers updated');
 });
-
 function startTimers(){
   stopAllTimers();
   if(App.timers.mode === 'none'){ $('#timerVal').textContent = '—'; return; }
@@ -745,42 +725,45 @@ function startTimers(){
     App.timers.quizRemaining = App.timers.quiz;
     $('#timerVal').textContent = formatTime(App.timers.quizRemaining);
     App.timers.interval = setInterval(()=>{
-      App.timers.quizRemaining--;
-      $('#timerVal').textContent = formatTime(App.timers.quizRemaining);
+      App.timers.quizRemaining--; $('#timerVal').textContent = formatTime(App.timers.quizRemaining);
       if(App.timers.quizRemaining <= 0){ clearInterval(App.timers.interval); submitQuiz(); }
     },1000);
-  } else if(App.timers.mode === 'question'){
+  } else {
     resetQuestionTimer();
   }
 }
-
 function resetQuestionTimer(){
   if(App.timers.mode !== 'question') return;
   App.timers.questionRemaining = App.timers.question;
   $('#timerVal').textContent = formatTime(App.timers.questionRemaining);
   if(App.timers.interval) clearInterval(App.timers.interval);
   App.timers.interval = setInterval(()=>{
-    App.timers.questionRemaining--;
-    $('#timerVal').textContent = formatTime(App.timers.questionRemaining);
-    if(App.timers.questionRemaining <= 0){
-      clearInterval(App.timers.interval);
-      App.userAnswers[App.currentIndex] = null; // mark as skipped/wrong
-      loadQuestion(nextUnansweredOrNext());
-    }
+    App.timers.questionRemaining--; $('#timerVal').textContent = formatTime(App.timers.questionRemaining);
+    if(App.timers.questionRemaining <= 0){ clearInterval(App.timers.interval); App.userAnswers[App.currentIndex] = null; loadQuestion(nextUnansweredOrNext()); }
   },1000);
 }
-
 function stopAllTimers(){ if(App.timers.interval) clearInterval(App.timers.interval); App.timers.interval = null; $('#timerVal').textContent = '—'; }
 function formatTime(sec){ if(sec==null) return '—'; const m=Math.floor(sec/60); const s=sec%60; return `${m}:${s.toString().padStart(2,'0')}`; }
 function nextUnansweredOrNext(){ for(let i=0;i<App.questions.length;i++) if(App.userAnswers[i]===undefined && !App.skipped.has(i)) return i; return Math.min(App.currentIndex+1, App.questions.length-1); }
 
-/* =========================
-   Save / Load / Export
-========================= */
+/* confetti */
+function confettiBurst(){
+  const c = document.createElement('div'); c.style.position='fixed'; c.style.inset='0'; c.style.pointerEvents='none'; c.style.zIndex='9999'; document.body.appendChild(c);
+  const colors = ['#4361ee','#3a0ca3','#4cc9f0','#f72585','#fca311'];
+  for(let i=0;i<40;i++){
+    const el = document.createElement('div'); el.style.position='absolute'; el.style.left=(Math.random()*100)+'%'; el.style.top='-10%'; el.style.width='8px'; el.style.height='12px'; el.style.background=colors[Math.floor(Math.random()*colors.length)]; el.style.opacity='0.95';
+    el.style.transition='transform 2.6s linear, top 2.6s linear, opacity 2.6s linear'; c.appendChild(el);
+    setTimeout(()=>{ el.style.top=(100+Math.random()*60)+'vh'; el.style.transform=`rotate(${Math.random()*1080}deg)`; el.style.opacity='0'; }, 30 + i*10);
+    setTimeout(()=> el.remove(), 3300 + Math.random()*400);
+  }
+  setTimeout(()=> c.remove(), 3600);
+}
+
+/* Save/load/export */
 $('#saveQuizBtn').addEventListener('click', ()=>{
-  if(!App.questions || !App.questions.length) return toast('No quiz to save');
+  if(!App.questions || App.questions.length===0) return toast('No quiz to save');
+  $('#quizTitle').value = App.pdfText ? 'Quiz from PDF' : 'My Quiz';
   $('#saveModal').classList.remove('hidden');
-  $('#quizTitle').value = (App.pdfText? 'Quiz from PDF':'' ) || 'My Quiz';
 });
 $('#closeSave').addEventListener('click', ()=> $('#saveModal').classList.add('hidden'));
 $('#cancelSave').addEventListener('click', ()=> $('#saveModal').classList.add('hidden'));
@@ -789,148 +772,127 @@ $('#saveToLocal').addEventListener('click', ()=>{
   const cat = $('#quizCategory').value || 'General';
   const data = { id: 'q_' + Date.now(), title, cat, questions: App.questions, created: new Date().toISOString() };
   const list = JSON.parse(localStorage.getItem('quizpro_saved') || '[]'); list.push(data); localStorage.setItem('quizpro_saved', JSON.stringify(list));
-  $('#saveModal').classList.add('hidden');
-  toast('Saved');
-  loadSavedQuizzes();
+  $('#saveModal').classList.add('hidden'); toast('Saved'); loadSavedQuizzes();
 });
 
+/* load saved list */
 function loadSavedQuizzes(){
   const list = JSON.parse(localStorage.getItem('quizpro_saved') || '[]');
-  const container = $('#quizList'); container.innerHTML = '';
-  if(list.length === 0){ container.innerHTML = '<div class="text-gray-500">No saved quizzes</div>'; return; }
-  list.forEach(item => {
-    const c = el('div','p-3 border rounded-md bg-gray-50');
-    c.innerHTML = `<div class="flex justify-between items-center">
-      <div>
-        <div class="font-semibold">${item.title}</div>
-        <div class="text-xs text-gray-500">${new Date(item.created).toLocaleString()}</div>
-      </div>
-      <div class="flex gap-2">
-        <button class="px-3 py-1 bg-blue-100 rounded loadBtn" data-id="${item.id}">Load</button>
-        <button class="px-3 py-1 bg-red-100 rounded delBtn" data-id="${item.id}">Delete</button>
-      </div>
-    </div>`;
-    container.appendChild(c);
+  const box = $('#quizList'); box.innerHTML = '';
+  if(!list.length){ box.innerHTML = '<div class="text-gray-500">No saved quizzes</div>'; return; }
+  list.forEach(it=>{
+    const row = el('div','p-3 border rounded bg-gray-50');
+    row.innerHTML = `<div class="flex justify-between items-center"><div><div class="font-semibold">${it.title}</div><div class="text-xs text-gray-500">${new Date(it.created).toLocaleString()}</div></div>
+      <div class="flex gap-2"><button class="px-3 py-1 bg-blue-100 loadBtn" data-id="${it.id}">Load</button><button class="px-3 py-1 bg-red-100 delBtn" data-id="${it.id}">Delete</button></div></div>`;
+    box.appendChild(row);
   });
-
+  // wire load & delete
   document.querySelectorAll('.loadBtn').forEach(b=>{
     b.addEventListener('click', ()=>{
       const id = b.dataset.id;
       const list = JSON.parse(localStorage.getItem('quizpro_saved') || '[]');
-      const found = list.find(x => x.id === id);
-      if(!found) return toast('Not found');
+      const found = list.find(x=>x.id === id);
+      if(!found) return toast('Saved quiz not found');
       App.questions = found.questions;
-      App.userAnswers = {};
-      loadQuestion(0);
-      $('#quizCard').classList.remove('hidden');
-      $('#savedCard').classList.add('hidden');
-      toast('Loaded saved quiz');
-      buildNavigator();
-      updateStats();
+      App.userAnswers = {}; App.skipped = new Set(); App.currentIndex = 0;
+      $('#quizCard').classList.remove('hidden'); $('#savedCard').classList.add('hidden'); $('#resultsCard').classList.add('hidden');
+      buildNavigatorUI(); loadQuestion(0); updatePowerupUI(); toast('Loaded saved quiz');
     });
   });
-
   document.querySelectorAll('.delBtn').forEach(b=>{
     b.addEventListener('click', ()=>{
-      const id = b.dataset.id;
-      let list = JSON.parse(localStorage.getItem('quizpro_saved') || '[]');
-      list = list.filter(x => x.id !== id);
-      localStorage.setItem('quizpro_saved', JSON.stringify(list));
-      toast('Deleted');
-      loadSavedQuizzes();
+      if(!confirm('Delete saved quiz?')) return;
+      const id = b.dataset.id; let list = JSON.parse(localStorage.getItem('quizpro_saved') || '[]'); list = list.filter(x=>x.id !== id); localStorage.setItem('quizpro_saved', JSON.stringify(list)); toast('Deleted'); loadSavedQuizzes();
     });
   });
 }
 
+/* export */
 $('#exportAllBtn').addEventListener('click', ()=>{
   const blob = new Blob([JSON.stringify({ seeds: App.seeds, exportedAt: new Date().toISOString() }, null, 2)], {type:'application/json'});
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'quiz-seeds.json'; a.click(); URL.revokeObjectURL(a.href);
-  toast('Exported');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'quiz-seeds.json'; a.click(); URL.revokeObjectURL(a.href); toast('Exported seeds');
 });
-
 $('#exportResults').addEventListener('click', ()=>{
   const blob = new Blob([JSON.stringify({ score: App.score, correct: App.correctCount, answers: App.userAnswers, exportedAt: new Date().toISOString() }, null, 2)], {type:'application/json'});
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'quiz-results.json'; a.click(); URL.revokeObjectURL(a.href);
-  toast('Results exported');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'quiz-results.json'; a.click(); URL.revokeObjectURL(a.href); toast('Exported results');
 });
 
-$('#clearStorageBtn').addEventListener('click', ()=>{
-  if(!confirm('Clear all saved quizzes?')) return;
-  localStorage.removeItem('quizpro_saved');
-  loadSavedQuizzes();
-  toast('Cleared storage');
-});
-
-/* Retry */
-$('#retryAll').addEventListener('click', ()=> {
-  if(!App.questions || App.questions.length===0) return;
-  startQuizWith(App.questions.map(q=>({...q})));
-});
+/* retry */
+$('#retryAll').addEventListener('click', ()=> { if(!App.questions) return; startQuizWith(App.questions.map(q=>({...q}))); });
 $('#retryWrong').addEventListener('click', ()=> {
   const wrongs = App.questions.filter((q,i)=> App.userAnswers[i] !== q.ans);
-  if(wrongs.length===0) return toast('No wrong items');
-  startQuizWith(wrongs);
+  if(!wrongs.length) return toast('No wrong items'); startQuizWith(wrongs);
 });
 
-/* =========================
-   Generation button
-========================= */
-$('#genBtn').addEventListener('click', ()=>{
-  if(!App.seeds || App.seeds.length===0){ buildSeedsFromText(); if(App.seeds.length===0) return toast('No seeds available'); }
-  const desired = parseInt($('#numQuestions').value) || 10;
-  const focus = ($('#focusAreas').value || '').split(',').map(s=>s.trim()).filter(Boolean);
-  const difficulty = $('#difficulty').value || 'mixed';
-  if(App.seeds.length < desired){
-    rebuildNumDropdown(App.seeds.length);
-    return toast(`Only ${App.seeds.length} seeds available. Dropdown adjusted.`);
+/* Study preview: term -> description extraction */
+$('#buildStudyBtn').addEventListener('click', ()=> {
+  if(!App.pdfText || App.pdfText.trim().length < 20) return toast('Upload a PDF first');
+  const text = App.pdfText.replace(/\s+/g,' ');
+  const sentences = text.split(/(?<=[.?!])\s+/).map(s=>s.trim()).filter(s=>s.length>25);
+  // heuristics: sentences with 'is|refers to|means|defined as|consists of' become term:definition
+  const patterns = /\b([A-Z][a-z0-9\- ]{2,80}?)\b.*\b(is|are|refers to|means|defined as|consists of|composed of)\b\s*(.*?)[.?!]/i;
+  const terms = [];
+  for(const s of sentences){
+    const m = s.match(patterns);
+    if(m){
+      const term = m[1].trim();
+      const def = (m[3] || '').trim();
+      if(term && def) terms.push({term, def, context: s});
+    }
+    if(terms.length >= 80) break;
   }
-  const questions = generateQuestionsFromSeeds(desired, focus, difficulty);
-  if(!questions || questions.length===0) return toast('Could not generate any questions');
-  if(questions.length < desired){ rebuildNumDropdown(questions.length); toast(`Only ${questions.length} questions could be formed`); }
-  startQuizWith(questions);
-});
-
-/* Build study preview */
-$('#buildStudyBtn').addEventListener('click', ()=>{
-  if(!App.pdfText) return toast('Upload a PDF first');
-  const paras = App.pdfText.split(/\n{1,}/).map(p=>p.trim()).filter(Boolean).slice(0,8);
-  const content = paras.map((p,i)=>`<h4 class="font-semibold">Section ${i+1}</h4><p class="text-sm text-gray-600">${p.slice(0,600)}</p>`).join('');
-  const modal = document.createElement('div'); modal.className='fixed inset-0 z-50 bg-black bg-opacity-40 flex items-center justify-center p-4';
-  modal.innerHTML = `<div class="bg-white rounded-lg p-4 max-w-3xl w-full"><div class="flex justify-between items-center"><h3 class="font-semibold">Study Preview</h3><button id="closeStudy" class="text-gray-500">Close</button></div><div class="mt-3 space-y-3 overflow-auto max-h-[60vh]">${content}</div></div>`;
-  document.body.appendChild(modal);
-  modal.querySelector('#closeStudy').addEventListener('click', ()=> modal.remove());
-});
-
-/* =========================
-   Confetti
-========================= */
-function confettiBurst(){
-  const container = document.createElement('div'); container.style.position='fixed'; container.style.inset='0'; container.style.pointerEvents='none'; container.style.zIndex='9999';
-  document.body.appendChild(container);
-  const colors = ['#4361ee','#3a0ca3','#4cc9f0','#f72585','#fca311'];
-  for(let i=0;i<40;i++){
-    const el = document.createElement('div'); el.style.position='absolute'; el.style.left=(Math.random()*100)+'%'; el.style.top='-10%';
-    el.style.width='8px'; el.style.height='12px'; el.style.background = colors[Math.floor(Math.random()*colors.length)];
-    el.style.borderRadius='2px'; el.style.opacity='0.95'; el.style.transform = `rotate(${Math.random()*360}deg)`;
-    el.style.transition = 'transform 2.6s linear, top 2.6s linear, opacity 2.6s linear';
-    container.appendChild(el);
-    setTimeout(()=>{ el.style.top = (100 + Math.random()*60) + 'vh'; el.style.transform = `translateY(0) rotate(${Math.random()*1080}deg)`; el.style.opacity='0'; }, 20 + i*10);
-    setTimeout(()=> el.remove(), 3200 + Math.random()*400);
+  // fallback: if none found, build from first nouns/phrases
+  if(terms.length === 0){
+    for(const s of sentences.slice(0,80)){
+      const phrase = s.split(/,| - |: /)[0].slice(0,80);
+      if(phrase.length>6) terms.push({term: phrase, def: s.slice(0,200), context: s});
+      if(terms.length>=80) break;
+    }
   }
-  setTimeout(()=> container.remove(), 3600);
+
+  // render professional study modal
+  const container = $('#studyContent'); container.innerHTML = '';
+  for(const t of terms){
+    const row = el('div','p-3 border rounded');
+    row.innerHTML = `<div class="font-semibold">${t.term}</div><div class="text-sm text-gray-700 mt-1">${t.def}</div><div class="text-xs text-gray-400 mt-2">${t.context.slice(0,240)}${t.context.length>240?'...':''}</div>`;
+    container.appendChild(row);
+  }
+  $('#studyModal').classList.remove('hidden');
+});
+$('#closeStudyModal').addEventListener('click', ()=> $('#studyModal').classList.add('hidden'));
+
+/* Navigator menu on small screens: view saved/results buttons */
+$('#viewSavedBtn').addEventListener('click', ()=> {
+  $('#savedCard').classList.remove('hidden'); $('#quizCard').classList.add('hidden'); $('#resultsCard').classList.add('hidden');
+  document.getElementById('sidebarNav').classList.remove('active');
+  loadSavedQuizzes();
+});
+$('#viewResultsBtn').addEventListener('click', ()=> {
+  $('#resultsCard').classList.remove('hidden'); $('#savedCard').classList.add('hidden'); $('#quizCard').classList.add('hidden');
+  document.getElementById('sidebarNav').classList.remove('active');
+});
+
+/* Fullscreen */
+$('#openFull').addEventListener('click', ()=> {
+  try{
+    if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+    else if(document.documentElement.webkitRequestFullscreen) document.documentElement.webkitRequestFullscreen();
+    toast('Opened fullscreen');
+  }catch(e){ toast('Fullscreen failed'); }
+});
+
+/* Initial load saved quizzes and defaults */
+function initEverything(){
+  loadSavedQuizzes();
+  updatePowerupUI();
+  rebuildNumDropdown(10);
+  // Apply a small tick to ensure dropdown bug fixed after first PDF load too
+  setTimeout(()=> { if($('#numQuestions').options.length === 0) rebuildNumDropdown(10); }, 200);
 }
+initEverything();
 
-/* =========================
-   Initialization
-========================= */
-function updateStats(){ setPowerupDisplays(); }
-function setPowerupDisplays(){ $('#count5050').textContent = App.powerups['5050']; $('#countHint').textContent = App.powerups['hint']; $('#countSkip').textContent = App.powerups['skip']; $('#coins').textContent = App.coins; $('#coinsTop').textContent = App.coins; $('#score').textContent = App.score; $('#correctCount').textContent = App.correctCount; $('#streak').textContent = App.streak; }
-
-function loadSavedQuizzesOnStart(){ loadSavedQuizzes(); loadSavedQuizzes = loadSavedQuizzes; } // dummy to appease linter
-loadSavedQuizzes();
-
-/* small helpers to ensure UI remains in sync */
-setInterval(()=>{ updateStats(); }, 1000);
+/* Fix: when user uploads PDF multiple times, dropdown updates correctly (handled by rebuildNumDropdown in buildSeedsFromText).
+   Additionally ensure seeds are rebuilt whenever pdfText changes. */
 
 </script>
 </body>
