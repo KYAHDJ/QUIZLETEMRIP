@@ -34,14 +34,39 @@
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
-/* Term card styling */
-.term-card {
+/* Study guide styling */
+.study-section {
   border-left: 4px solid #3b82f6;
-  transition: all 0.3s ease;
+  background: linear-gradient(to right, #f8fafc, #ffffff);
 }
-.term-card:hover {
-  transform: translateX(4px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+.study-subsection {
+  border-left: 3px solid #60a5fa;
+  background: #f8fafc;
+}
+.study-point {
+  position: relative;
+  padding-left: 1.5rem;
+}
+.study-point:before {
+  content: "•";
+  position: absolute;
+  left: 0.5rem;
+  color: #3b82f6;
+  font-weight: bold;
+}
+.highlight-term {
+  background-color: #fef3c7;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
+  font-weight: 600;
+}
+.memory-tip {
+  background: linear-gradient(135deg, #dbeafe, #e0e7ff);
+  border-left: 4px solid #4f46e5;
+}
+.helpline-box {
+  background: linear-gradient(135deg, #fef3c7, #fed7aa);
+  border: 2px solid #f59e0b;
 }
 </style>
 
@@ -255,7 +280,7 @@ document.getElementById("closeNav").onclick = ()=> {
         </button>
 
         <button id="buildStudyBtn" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
-          <i class="fa-solid fa-book-open mr-1"></i> Study Preview
+          <i class="fa-solid fa-book-open mr-1"></i> Study Guide
         </button>
 
         <div class="ml-auto text-sm text-gray-600">
@@ -341,24 +366,24 @@ document.getElementById("closeNav").onclick = ()=> {
         <i class="fa-solid fa-chart-bar mr-2"></i> View Results
       </button>
       <button id="generateStudyBtn" class="w-full px-3 py-2 bg-purple-50 rounded hover:bg-purple-100 transition-colors">
-        <i class="fa-solid fa-book-open mr-2"></i> Study Terms
+        <i class="fa-solid fa-book-open mr-2"></i> Study Guide
       </button>
     </div>
   </aside>
 
 </main>
 
-<!-- Study modal (professional term + definition) -->
+<!-- Study modal (structured study guide) -->
 <div id="studyModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black bg-opacity-40">
   <div class="bg-white rounded-lg max-w-4xl w-full p-4 max-h-[80vh] overflow-auto">
     <div class="flex justify-between items-center mb-4">
       <div>
-        <h3 class="font-semibold text-xl">Study Preview — Terms & Definitions</h3>
-        <p class="text-sm text-gray-500">Clean, meaningful terms extracted from your document</p>
+        <h3 class="font-semibold text-xl">📘 Study Guide - Quick Reviewer</h3>
+        <p class="text-sm text-gray-500">Structured study guide generated from your PDF</p>
       </div>
       <div class="flex gap-2">
         <button id="exportStudyBtn" class="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors text-sm">
-          <i class="fa-solid fa-download mr-1"></i> Export
+          <i class="fa-solid fa-download mr-1"></i> Export Guide
         </button>
         <button id="closeStudyModal" class="px-3 py-1 bg-gray-100 rounded hover:bg-gray-200 transition-colors text-sm">Close</button>
       </div>
@@ -366,7 +391,7 @@ document.getElementById("closeNav").onclick = ()=> {
     
     <div id="studyStats" class="mb-4 p-3 bg-blue-50 rounded-lg"></div>
     
-    <div id="studyContent" class="space-y-4"></div>
+    <div id="studyContent" class="space-y-6"></div>
   </div>
 </div>
 
@@ -469,10 +494,11 @@ function escapeReg(s){
 }
 
 /* ---------------------------
-   IMPROVED TERM EXTRACTION - NO GENERIC PHRASES
+   STRUCTURED STUDY GUIDE GENERATOR
+   (Like your abnormal psychology example)
 --------------------------- */
-function extractCleanTermsAndDefinitions(text) {
-  console.log("Extracting clean terms and definitions...");
+function generateStructuredStudyGuide(text) {
+  console.log("Generating structured study guide...");
   
   // Clean and normalize text
   const cleanText = text
@@ -480,321 +506,367 @@ function extractCleanTermsAndDefinitions(text) {
     .replace(/[•·]/g, '•')
     .trim();
   
-  const sentences = cleanText.split(/(?<=[.!?])\s+/);
-  const terms = [];
-  const seenTerms = new Set();
+  // Extract the document title (first meaningful line)
+  const firstLine = cleanText.split('\n')[0] || '';
+  const docTitle = extractDocumentTitle(firstLine, cleanText);
   
-  // Common definition patterns (like in your example)
-  const definitionPatterns = [
-    // Pattern: "Term is definition"
-    /^([A-Z][A-Za-z0-9\s\-&()]{2,60}?)\s+(?:is|are|refers to|means|defined as|consists of|involves|encompasses|includes)\s+(.+?)(?:\s*[.!?]|$)/i,
-    
-    // Pattern: "Term: definition"
-    /^([A-Za-z0-9\s\-&()]{2,80}?):\s+(.+?)(?:\s*[.!?]|$)/,
-    
-    // Pattern for bullet points: "• Term – definition"
-    /(?:^|•\s*|\d+\.\s*)([A-Z][A-Za-z0-9\s\-&()]{2,60}?)(?:\s*[:\-–]\s*|\s+is\s+|\s+are\s+)(.+?)(?=\s*(?:•|\d+\.|$))/,
-    
-    // Pattern: "Term (abbreviation) is definition"
-    /([A-Z][A-Za-z\s]+)\s*\(([A-Z]+)\)\s+(?:is|are|refers to)\s+(.+?)(?:\s*[.!?]|$)/i,
+  // Extract sections and content
+  const sections = extractDocumentSections(cleanText);
+  const keyTerms = extractKeyTermsWithDefinitions(cleanText);
+  const importantPoints = extractImportantPoints(cleanText);
+  const contactInfo = extractContactInformation(cleanText);
+  
+  // Structure the study guide
+  const studyGuide = {
+    title: docTitle,
+    sections: sections,
+    keyTerms: keyTerms,
+    importantPoints: importantPoints,
+    contactInfo: contactInfo,
+    memoryTips: generateMemoryTips(keyTerms, importantPoints)
+  };
+  
+  return studyGuide;
+}
+
+function extractDocumentTitle(firstLine, fullText) {
+  // Look for title patterns
+  const titlePatterns = [
+    /^([A-Z][A-Za-z0-9\s\-&():]{5,80})$/,
+    /^(?:Chapter|Unit|Module|Part)\s+\d+[:\.]?\s*([A-Z][A-Za-z0-9\s\-&():]{5,80})/i,
+    /^[A-Z\s]{10,}$/ // All caps title
   ];
   
-  // FIXED: Generate specific definitions based on term type
-  function generateSpecificDefinition(term, context) {
-    const termLower = term.toLowerCase();
-    
-    // Check for specific term types and generate appropriate definitions
-    if (/development$/i.test(term)) {
-      return `The process of creating, building, or designing ${term.replace(/development$/i, '').trim()} solutions and systems.`;
+  for(const pattern of titlePatterns) {
+    const match = firstLine.match(pattern);
+    if(match) {
+      return match[1] || match[0];
     }
-    
-    if (/engineering$/i.test(term)) {
-      return `The application of scientific principles to design, build, and maintain ${term.replace(/engineering$/i, '').trim()} systems.`;
-    }
-    
-    if (/architecture$/i.test(term)) {
-      return `The structural design and organization of ${term.replace(/architecture$/i, '').trim()} systems and components.`;
-    }
-    
-    if (/analysis$/i.test(term)) {
-      return `The examination and evaluation of ${term.replace(/analysis$/i, '').trim()} to understand its components and relationships.`;
-    }
-    
-    if (/management$/i.test(term)) {
-      return `The process of controlling, organizing, and overseeing ${term.replace(/management$/i, '').trim()} activities and resources.`;
-    }
-    
-    if (/system$/i.test(term)) {
-      return `An organized set of ${term.replace(/system$/i, '').trim()} components working together to achieve specific goals.`;
-    }
-    
-    if (/technology$/i.test(term)) {
-      return `The application of scientific knowledge for practical purposes in ${term.replace(/technology$/i, '').trim()}.`;
-    }
-    
-    if (/software$/i.test(term)) {
-      return `Computer programs and applications designed for ${term.replace(/software$/i, '').trim()} purposes.`;
-    }
-    
-    if (/hardware$/i.test(term)) {
-      return `Physical components and devices used in ${term.replace(/hardware$/i, '').trim()} systems.`;
-    }
-    
-    if (/network$/i.test(term)) {
-      return `A system of interconnected ${term.replace(/network$/i, '').trim()} components that communicate with each other.`;
-    }
-    
-    if (/security$/i.test(term)) {
-      return `Measures and protocols to protect ${term.replace(/security$/i, '').trim()} from threats and unauthorized access.`;
-    }
-    
-    if (/database$/i.test(term)) {
-      return `An organized collection of data stored and accessed electronically for ${term.replace(/database$/i, '').trim()} purposes.`;
-    }
-    
-    if (/interface$/i.test(term)) {
-      return `A point of interaction between ${term.replace(/interface$/i, '').trim()} components or systems.`;
-    }
-    
-    if (/algorithm$/i.test(term)) {
-      return `A step-by-step procedure or formula for solving ${term.replace(/algorithm$/i, '').trim()} problems.`;
-    }
-    
-    if (/framework$/i.test(term)) {
-      return `A basic structure underlying ${term.replace(/framework$/i, '').trim()} systems or concepts.`;
-    }
-    
-    if (/methodology$/i.test(term)) {
-      return `A system of methods used in ${term.replace(/methodology$/i, '').trim()} work or study.`;
-    }
-    
-    // Common technology/skill terms
-    if (/(?:PHP|Java|Python|JavaScript|C\+\+|C#|Ruby|Swift|Kotlin|Go|Rust)$/i.test(term)) {
-      return `A programming language used for ${context.includes('web') ? 'web development' : context.includes('mobile') ? 'mobile applications' : 'software development'}.`;
-    }
-    
-    if (/(?:HTML|CSS|XML|JSON)$/i.test(term)) {
-      return `A markup language used for structuring and presenting ${context.includes('web') ? 'web' : 'digital'} content.`;
-    }
-    
-    if (/(?:SQL|MySQL|PostgreSQL|MongoDB)$/i.test(term)) {
-      return `A database ${term.includes('SQL') ? 'query language' : 'management system'} used for data storage and retrieval.`;
-    }
-    
-    if (/(?:Unity|Unreal|Blender|Maya|Photoshop)$/i.test(term)) {
-      return `A software tool used for ${context.includes('game') ? 'game development' : context.includes('3D') ? '3D modeling and animation' : 'digital content creation'}.`;
-    }
-    
-    // If we have context, create a definition from it
-    if (context && context.length > 20) {
-      // Extract the part after the term
-      const afterTerm = context.substring(context.indexOf(term) + term.length).trim();
-      if (afterTerm.length > 10) {
-        // Check if the context provides a definition
-        if (/^(?:is|are|means|refers to|involves|includes)/i.test(afterTerm)) {
-          const definitionPart = afterTerm.replace(/^(?:is|are|means|refers to|involves|includes)\s+/i, '');
-          return definitionPart.split(/[.!?]/)[0] + '.';
-        }
-        
-        // Try to create a summary from context
-        const words = afterTerm.split(/\s+/).slice(0, 15).join(' ');
-        return words + (words.length < afterTerm.length ? '...' : '');
-      }
-    }
-    
-    // Last resort: Create a specific definition based on word analysis
-    const words = term.split(/\s+/);
-    if (words.length > 1) {
-      // Multi-word term - describe it
-      return `A concept or practice involving ${words.slice(-1)[0].toLowerCase()} in the context of ${words.slice(0, -1).join(' ').toLowerCase()}.`;
-    } else {
-      // Single word - describe its function
-      if (/^[A-Z]/.test(term) && term.length > 4) {
-        return `A key concept, technology, or practice mentioned in the document related to ${term.toLowerCase()}.`;
-      }
-    }
-    
-    // Minimal fallback (much better than the generic one)
-    return `A term mentioned in the document that requires understanding in context.`;
   }
+  
+  // Fallback: Use first sentence as title
+  const firstSentence = fullText.split(/[.!?]/)[0];
+  if(firstSentence && firstSentence.length > 10 && firstSentence.length < 100) {
+    return firstSentence;
+  }
+  
+  return "Study Guide";
+}
 
-  // First pass: Look for structured definitions
-  for(const sentence of sentences) {
-    if(sentence.length < 20 || sentence.length > 500) continue;
+function extractDocumentSections(text) {
+  const sections = [];
+  const lines = text.split('\n');
+  
+  let currentSection = null;
+  let currentContent = [];
+  
+  // Common section headers
+  const sectionPatterns = [
+    /^(?:Part|Chapter|Unit|Module)\s+\d+[:\.]?\s*([A-Z][A-Za-z0-9\s\-&():]+)/i,
+    /^([A-Z][A-Za-z0-9\s\-&():]{3,50}):?$/,
+    /^\d+\.\s+([A-Z][A-Za-z0-9\s\-&():]{3,50})/,
+    /^[A-Z\s]{5,}$/ // All caps section
+  ];
+  
+  for(const line of lines) {
+    const trimmed = line.trim();
     
-    for(const pattern of definitionPatterns) {
-      const match = sentence.match(pattern);
+    // Check if this is a section header
+    let isSection = false;
+    let sectionTitle = '';
+    
+    for(const pattern of sectionPatterns) {
+      const match = trimmed.match(pattern);
       if(match) {
-        let term, definition;
-        
-        if(pattern.source.includes('\\(')) {
-          // Pattern with abbreviation
-          term = `${match[1].trim()} (${match[2]})`;
-          definition = match[3].trim();
-        } else {
-          term = match[1].trim();
-          definition = match[2].trim();
-        }
-        
-        // Clean up the definition
-        definition = definition
-          .replace(/^(?:a|an|the)\s+/i, '')
-          .replace(/\.$/, '')
-          .trim();
-        
-        // Skip if too short or common
-        if(term.length < 3 || definition.length < 10) continue;
-        if(/^(The|This|That|These|Those|It|They)\s+/i.test(term)) continue;
-        
-        const termKey = term.toLowerCase().replace(/[^a-z0-9]/g, '');
-        if(!seenTerms.has(termKey)) {
-          terms.push({
-            term: term,
-            definition: definition.charAt(0).toUpperCase() + definition.slice(1),
-            context: sentence,
-            confidence: 0.9
-          });
-          seenTerms.add(termKey);
-        }
+        isSection = true;
+        sectionTitle = match[1] || match[0];
         break;
       }
     }
+    
+    // Also check for common section keywords
+    if(!isSection && trimmed.length < 80) {
+      const lowerLine = trimmed.toLowerCase();
+      if(lowerLine.includes('introduction') || 
+         lowerLine.includes('background') ||
+         lowerLine.includes('definition') ||
+         lowerLine.includes('overview') ||
+         lowerLine.includes('conclusion') ||
+         lowerLine.includes('summary') ||
+         lowerLine.includes('reference')) {
+        isSection = true;
+        sectionTitle = trimmed;
+      }
+    }
+    
+    if(isSection) {
+      // Save previous section if exists
+      if(currentSection && currentContent.length > 0) {
+        sections.push({
+          title: currentSection,
+          content: currentContent.join(' '),
+          bulletPoints: extractBulletPoints(currentContent.join(' '))
+        });
+      }
+      
+      // Start new section
+      currentSection = sectionTitle;
+      currentContent = [];
+    } else if(currentSection && trimmed.length > 20) {
+      // Add content to current section
+      currentContent.push(trimmed);
+    }
   }
   
-  // Second pass: Extract important capitalized terms with SPECIFIC definitions
-  if(terms.length < 20) {
-    const importantCapitalized = extractImportantCapitalizedTerms(cleanText);
-    importantCapitalized.forEach(item => {
-      const termKey = item.term.toLowerCase().replace(/[^a-z0-9]/g, '');
-      if(!seenTerms.has(termKey) && item.confidence > 0.6) {
-        terms.push(item);
-        seenTerms.add(termKey);
+  // Add the last section
+  if(currentSection && currentContent.length > 0) {
+    sections.push({
+      title: currentSection,
+      content: currentContent.join(' '),
+      bulletPoints: extractBulletPoints(currentContent.join(' '))
+    });
+  }
+  
+  // If no sections found, create them from paragraphs
+  if(sections.length === 0) {
+    return createSectionsFromContent(text);
+  }
+  
+  return sections;
+}
+
+function createSectionsFromContent(text) {
+  const sections = [];
+  const paragraphs = text.split(/\n\n+/);
+  
+  let sectionCounter = 1;
+  const commonTopics = ['Definition', 'Types', 'Causes', 'Symptoms', 'Treatment', 'Examples', 'Importance'];
+  
+  paragraphs.forEach((para, index) => {
+    if(para.length > 100) {
+      const sectionTitle = index < commonTopics.length ? 
+        `Part ${sectionCounter}: ${commonTopics[index]}` : 
+        `Part ${sectionCounter}: Key Concepts`;
+      
+      sections.push({
+        title: sectionTitle,
+        content: para,
+        bulletPoints: extractBulletPoints(para)
+      });
+      sectionCounter++;
+    }
+  });
+  
+  return sections.slice(0, 8); // Limit to 8 sections
+}
+
+function extractBulletPoints(text) {
+  const bulletPoints = [];
+  
+  // Look for bullet points, numbered lists, or key points
+  const patterns = [
+    /(?:•|\*|\-)\s*([^•\n]{10,200})/g,
+    /\d+\.\s*([^\d\n]{10,200})/g,
+    /○\s*([^○\n]{10,200})/g
+  ];
+  
+  for(const pattern of patterns) {
+    const matches = [...text.matchAll(pattern)];
+    matches.forEach(match => {
+      if(match[1].length > 10) {
+        bulletPoints.push(match[1].trim());
       }
     });
   }
   
-  // Third pass: Extract skills/technologies from lists
-  const skillTerms = extractSkillsAndTechnologies(cleanText);
-  skillTerms.forEach(item => {
-    const termKey = item.term.toLowerCase().replace(/[^a-z0-9]/g, '');
-    if(!seenTerms.has(termKey)) {
-      terms.push(item);
-      seenTerms.add(termKey);
-    }
-  });
-  
-  // Sort by confidence and length (most important first)
-  terms.sort((a, b) => {
-    if(b.confidence !== a.confidence) return b.confidence - a.confidence;
-    return b.term.length - a.term.length;
-  });
-  
-  // Limit to 25 best terms
-  return terms.slice(0, 25);
-}
-
-function extractImportantCapitalizedTerms(text) {
-  const terms = [];
-  
-  // Look for important capitalized phrases with context
-  const capitalRegex = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3})\b/g;
-  const allMatches = [...text.matchAll(capitalRegex)];
-  
-  const commonTerms = new Set(['The', 'This', 'That', 'These', 'Those', 'With', 'From', 'Into', 'Over', 'Under', 'Between', 'Among']);
-  const stopWords = new Set(['and', 'or', 'but', 'for', 'nor', 'so', 'yet', 'as', 'at', 'by', 'in', 'of', 'on', 'to', 'up']);
-  
-  allMatches.forEach(match => {
-    const term = match[1];
-    const words = term.split(' ');
-    
-    // Skip common words and stop words
-    if(words.some(word => commonTerms.has(word) || stopWords.has(word.toLowerCase()))) return;
-    if(term.length < 5 || term.length > 50) return;
-    
-    // Check if this looks like an important term
-    const looksImportant = 
-      /(?:Development|System|Technology|Architecture|Design|Modeling|Training|Security|Programming|Language|Engine|Analysis|Management|Framework|Methodology|Software|Hardware|Network|Database|Interface|Algorithm)s?$/i.test(term) ||
-      /^[A-Z][a-z]+\s+[A-Z][a-z]+/.test(term); // Multiple capitalized words
-    
-    if(looksImportant) {
-      // Find context for this term
-      let context = '';
-      const sentences = text.split(/(?<=[.!?])\s+/);
-      for(const sentence of sentences) {
-        if(sentence.includes(term) && sentence.length > 20 && sentence.length < 300) {
-          context = sentence;
-          break;
+  // If no bullet points found, extract key sentences
+  if(bulletPoints.length === 0) {
+    const sentences = text.split(/[.!?]/);
+    sentences.forEach(sentence => {
+      if(sentence.length > 30 && sentence.length < 150) {
+        // Check if it looks like an important point
+        if(/^(?:The|A|An|This|That|These|Those|It|They)\s+[a-z]/i.test(sentence.trim()) ||
+           /(?:important|key|main|primary|essential|critical|major)\s+[a-z]+/i.test(sentence)) {
+          bulletPoints.push(sentence.trim());
         }
       }
+    });
+  }
+  
+  return bulletPoints.slice(0, 10); // Limit to 10 bullet points
+}
+
+function extractKeyTermsWithDefinitions(text) {
+  const terms = [];
+  
+  // Look for term-definition patterns
+  const patterns = [
+    /([A-Z][A-Za-z0-9\s\-&()]+)\s*(?:\([A-Z]+\))?\s*(?:is|are|means|refers to|defined as)\s+([^.!?]{10,200})/gi,
+    /([A-Z][A-Za-z0-9\s\-&()]+):\s+([^.!?\n]{10,200})/g,
+    /([A-Z][A-Za-z0-9\s\-&()]+)\s*—\s*([^.!?\n]{10,200})/g
+  ];
+  
+  for(const pattern of patterns) {
+    const matches = [...text.matchAll(pattern)];
+    matches.forEach(match => {
+      const term = match[1].trim();
+      let definition = match[2].trim();
       
-      // Generate a specific definition
-      let definition = generateSpecificDefinition(term, context);
+      // Clean up definition
+      definition = definition
+        .replace(/^(?:a|an|the)\s+/i, '')
+        .replace(/\.$/, '');
       
-      terms.push({
-        term: term,
-        definition: definition,
-        context: context || '',
-        confidence: looksImportant ? 0.8 : 0.6
-      });
+      if(term.length > 2 && definition.length > 10) {
+        // Skip if too common
+        if(!/^(The|This|That|These|Those|It|They)/i.test(term)) {
+          terms.push({
+            term: term,
+            definition: definition.charAt(0).toUpperCase() + definition.slice(1),
+            abbreviation: extractAbbreviation(term)
+          });
+        }
+      }
+    });
+  }
+  
+  // Remove duplicates
+  const uniqueTerms = [];
+  const seen = new Set();
+  
+  terms.forEach(term => {
+    const key = term.term.toLowerCase();
+    if(!seen.has(key)) {
+      seen.add(key);
+      uniqueTerms.push(term);
     }
   });
   
-  return terms;
+  return uniqueTerms.slice(0, 20); // Limit to 20 terms
 }
 
-function extractSkillsAndTechnologies(text) {
-  const terms = [];
+function extractAbbreviation(term) {
+  const match = term.match(/\(([A-Z]+)\)/);
+  return match ? match[1] : null;
+}
+
+function extractImportantPoints(text) {
+  const points = [];
+  const sentences = text.split(/[.!?]/);
   
-  // Look for skills/technologies sections
-  const skillPatterns = [
-    /(?:Skills|Technologies|Tools|Languages|Proficiencies|Expertise):\s*(.+?)(?:\n\n|\n[A-Z]|$)/gi,
-    /(?:Proficient in|Experienced with|Familiar with|Knowledge of)\s*(.+?)(?:\.|,|and)/gi
+  sentences.forEach(sentence => {
+    const trimmed = sentence.trim();
+    
+    // Look for important indicators
+    if(trimmed.length > 30 && trimmed.length < 200) {
+      const hasImportantIndicator = 
+        /(?:important|key|critical|essential|major|primary|significant|notable)\s+[a-z]+/i.test(trimmed) ||
+        /(?:note that|remember that|keep in mind|it is crucial|it is vital)/i.test(trimmed) ||
+        /\d+%\s+of/i.test(trimmed) || // Statistics
+        /(?:always|never|must|should|cannot)/i.test(trimmed); // Imperatives
+      
+      if(hasImportantIndicator) {
+        points.push(trimmed);
+      }
+    }
+  });
+  
+  return points.slice(0, 15); // Limit to 15 points
+}
+
+function extractContactInformation(text) {
+  const contacts = [];
+  
+  // Look for phone numbers
+  const phonePatterns = [
+    /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g,
+    /\b\d{4}[-.]?\d{3}[-.]?\d{4}\b/g,
+    /(?:phone|tel|contact|hotline|helpline)[:\s]*([+\d\s\-()]{8,20})/gi
   ];
   
-  for(const pattern of skillPatterns) {
+  for(const pattern of phonePatterns) {
     const matches = [...text.matchAll(pattern)];
-    for(const match of matches) {
-      const skillsText = match[1];
-      
-      // Split by commas, semicolons, or "and"
-      const skills = skillsText.split(/[,;]|\s+and\s+/).map(s => s.trim()).filter(s => s.length > 2);
-      
-      skills.forEach(skill => {
-        // Skip if too common or short
-        if(skill.length < 3 || skill.length > 40) return;
-        if(/^(?:etc|including|such as)/i.test(skill)) return;
-        
-        // Generate specific definition based on skill type
-        let definition;
-        if(/^(?:PHP|Java|Python|JavaScript|C\+\+|C#|Ruby|Swift|Kotlin)/i.test(skill)) {
-          definition = `A programming language used for software development and application building.`;
-        } else if(/^(?:HTML|CSS)/i.test(skill)) {
-          definition = `A markup language used for creating and styling web pages.`;
-        } else if(/SQL/i.test(skill)) {
-          definition = `A database query language used for managing and manipulating data.`;
-        } else if(/^(?:Unity|Blender|Photoshop)/i.test(skill)) {
-          definition = `A software tool for digital content creation and development.`;
-        } else if(/^(?:Git|Docker|Jenkins)/i.test(skill)) {
-          definition = `A development tool used for version control, deployment, or automation.`;
-        } else if(/(?:AWS|Azure|Google Cloud)/i.test(skill)) {
-          definition = `A cloud computing platform for hosting applications and services.`;
-        } else if(/Framework/i.test(skill)) {
-          definition = `A software framework providing structure for application development.`;
-        } else {
-          definition = `A skill or technology used in professional work and development.`;
-        }
-        
-        terms.push({
-          term: skill,
-          definition: definition,
-          context: `Listed under skills or technologies`,
-          confidence: 0.7
+    matches.forEach(match => {
+      const contact = match[1] || match[0];
+      if(contact.length > 7) {
+        contacts.push({
+          type: 'phone',
+          value: contact.trim(),
+          label: 'Contact Number'
         });
-      });
+      }
+    });
+  }
+  
+  // Look for email addresses
+  const emailMatches = [...text.matchAll(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g)];
+  emailMatches.forEach(match => {
+    contacts.push({
+      type: 'email',
+      value: match[0],
+      label: 'Email Address'
+    });
+  });
+  
+  // Look for websites/URLs
+  const urlMatches = [...text.matchAll(/\b(?:https?:\/\/)?(?:www\.)?[a-z0-9.-]+\.[a-z]{2,}(?:\/[^\s]*)?\b/gi)];
+  urlMatches.forEach(match => {
+    contacts.push({
+      type: 'url',
+      value: match[0],
+      label: 'Website'
+    });
+  });
+  
+  return contacts.slice(0, 3); // Limit to 3 contacts
+}
+
+function generateMemoryTips(keyTerms, importantPoints) {
+  const tips = [];
+  
+  // Create memory tips for key terms
+  keyTerms.forEach((term, index) => {
+    if(index < 5) { // Only first 5 terms
+      const tip = createMemoryTip(term.term, term.definition);
+      if(tip) tips.push(tip);
+    }
+  });
+  
+  // Add some general memory tips
+  const generalTips = [
+    "Use acronyms to remember lists",
+    "Create visual associations for complex terms",
+    "Practice active recall by testing yourself",
+    "Connect new information to what you already know",
+    "Break large topics into smaller chunks",
+    "Review material within 24 hours for better retention"
+  ];
+  
+  // Add 2-3 general tips
+  generalTips.slice(0, 3).forEach(tip => {
+    tips.push(tip);
+  });
+  
+  return tips;
+}
+
+function createMemoryTip(term, definition) {
+  const termWords = term.split(' ');
+  
+  // Create acronym for multi-word terms
+  if(termWords.length > 1) {
+    const acronym = termWords.map(word => word[0]).join('');
+    if(acronym.length > 1) {
+      return `"${acronym}" = ${term}`;
     }
   }
   
-  return terms;
+  // Create simple association
+  if(definition.length < 100) {
+    return `${term}: ${definition.split(' ').slice(0, 10).join(' ')}...`;
+  }
+  
+  return null;
 }
 
 /* ---------------------------
@@ -820,7 +892,7 @@ window.App = {
     quizRemaining: null, 
     questionRemaining: null 
   },
-  currentTerms: []
+  currentStudyGuide: null
 };
 
 /* ---------------------------
@@ -1533,30 +1605,30 @@ function findNextUnanswered(){
 }
 
 /* ---------------------------
-   SMART STUDY PREVIEW - NO GENERIC PHRASES
+   STRUCTURED STUDY GUIDE - LIKE YOUR EXAMPLE
 --------------------------- */
 $('#buildStudyBtn').addEventListener('click', () => {
-  if(!App.pdfText || App.pdfText.trim().length < 50){
+  if(!App.pdfText || App.pdfText.trim().length < 100){
     toast('Upload a PDF with sufficient content first');
     return;
   }
   
-  showStudyPreview();
+  showStudyGuide();
 });
 
 $('#generateStudyBtn').addEventListener('click', () => {
-  if(!App.pdfText || App.pdfText.trim().length < 50){
+  if(!App.pdfText || App.pdfText.trim().length < 100){
     toast('Upload a PDF with sufficient content first');
     return;
   }
   
-  showStudyPreview();
+  showStudyGuide();
 });
 
-function showStudyPreview(){
-  // Extract clean terms (using improved logic)
-  const terms = extractCleanTermsAndDefinitions(App.pdfText);
-  App.currentTerms = terms;
+function showStudyGuide(){
+  // Generate structured study guide
+  const studyGuide = generateStructuredStudyGuide(App.pdfText);
+  App.currentStudyGuide = studyGuide;
   
   const studyContent = $('#studyContent');
   const studyStats = $('#studyStats');
@@ -1565,133 +1637,304 @@ function showStudyPreview(){
   studyStats.innerHTML = `
     <div class="flex justify-between items-center">
       <div>
-        <div class="font-semibold">${terms.length} Clean Terms Extracted</div>
-        <div class="text-sm text-gray-600">No generic phrases - all specific definitions</div>
+        <div class="font-semibold">📘 ${studyGuide.title.toUpperCase()} - QUICK REVIEWER</div>
+        <div class="text-sm text-gray-600">${studyGuide.sections.length} sections • ${studyGuide.keyTerms.length} key terms • Ready for study</div>
       </div>
       <div class="text-sm text-gray-600">
-        <i class="fa-solid fa-check-circle text-green-500 mr-1"></i>
-        Specific extraction
+        <i class="fa-solid fa-graduation-cap text-purple-500 mr-1"></i>
+        Structured Guide
       </div>
     </div>
   `;
   
   studyContent.innerHTML = '';
   
-  if(terms.length === 0){
+  if(studyGuide.sections.length === 0){
     studyContent.innerHTML = `
       <div class="text-center p-8 text-gray-500">
         <i class="fa-solid fa-book-open text-4xl mb-4"></i>
-        <p class="text-lg font-medium">No structured terms found</p>
-        <p class="text-sm mt-2">Try uploading a different document with clear technical terms.</p>
+        <p class="text-lg font-medium">Could not generate structured guide</p>
+        <p class="text-sm mt-2">The document doesn't have clear section structure.</p>
+        <button id="createBasicGuide" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+          Create Basic Guide
+        </button>
       </div>
     `;
+    
+    $('#createBasicGuide').addEventListener('click', () => {
+      createBasicStudyGuide();
+    });
   } else {
-    displayTerms(terms);
+    displayStudyGuide(studyGuide);
   }
   
   $('#studyModal').classList.remove('hidden');
 }
 
-function displayTerms(terms){
-  const studyContent = $('#studyContent');
-  studyContent.innerHTML = '';
+function createBasicStudyGuide(){
+  const basicGuide = {
+    title: "Study Guide",
+    sections: [
+      {
+        title: "Key Concepts",
+        content: App.pdfText.substring(0, 500) + "...",
+        bulletPoints: extractKeySentences(App.pdfText, 8)
+      },
+      {
+        title: "Important Terms",
+        content: "Key terminology from the document",
+        bulletPoints: extractKeyTermsAsBullets(App.pdfText, 10)
+      },
+      {
+        title: "Main Points",
+        content: "Summary of important information",
+        bulletPoints: extractImportantSentences(App.pdfText, 6)
+      }
+    ],
+    keyTerms: extractBasicKeyTerms(App.pdfText),
+    importantPoints: extractImportantSentences(App.pdfText, 10),
+    contactInfo: [],
+    memoryTips: ["Review regularly", "Test yourself", "Connect concepts"]
+  };
   
-  terms.forEach((term, index) => {
-    const termElement = document.createElement('div');
-    termElement.className = 'term-card p-4 bg-white border rounded-lg hover:shadow-md transition-all';
-    
-    const number = (index + 1).toString().padStart(2, '0');
-    const confidenceColor = term.confidence > 0.8 ? 'bg-green-100 text-green-800' : 
-                          term.confidence > 0.6 ? 'bg-blue-100 text-blue-800' : 
-                          'bg-yellow-100 text-yellow-800';
-    
-    termElement.innerHTML = `
-      <div class="flex items-start">
-        <div class="mr-4">
-          <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
-            ${number}
-          </div>
-        </div>
-        <div class="flex-1">
-          <div class="flex justify-between items-start">
-            <div>
-              <div class="font-bold text-lg text-gray-800">${term.term}</div>
-              <span class="text-xs px-2 py-1 rounded ${confidenceColor} font-medium">
-                ${term.confidence > 0.8 ? 'High' : term.confidence > 0.6 ? 'Medium' : 'Low'} confidence
-              </span>
-            </div>
-            <button class="copy-term-btn px-2 py-1 text-xs bg-gray-100 rounded hover:bg-gray-200 transition-colors"
-                    data-term="${term.term}" data-def="${term.definition}">
-              <i class="fa-solid fa-copy mr-1"></i> Copy
-            </button>
-          </div>
-          <div class="mt-3">
-            <div class="text-gray-700 leading-relaxed">${term.definition}</div>
-            ${term.context && term.context.length > 30 && term.context.length < 200 ? `
-              <div class="mt-2 text-xs text-gray-500 p-2 bg-gray-50 rounded border">
-                <i class="fa-solid fa-quote-left mr-1"></i>
-                ${term.context}
-              </div>
-            ` : ''}
-          </div>
-        </div>
-      </div>
-    `;
-    
-    studyContent.appendChild(termElement);
+  App.currentStudyGuide = basicGuide;
+  displayStudyGuide(basicGuide);
+}
+
+function extractKeySentences(text, count){
+  const sentences = text.split(/[.!?]/);
+  return sentences
+    .filter(s => s.length > 30 && s.length < 150)
+    .slice(0, count)
+    .map(s => s.trim());
+}
+
+function extractKeyTermsAsBullets(text, count){
+  const terms = [];
+  const matches = [...text.matchAll(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b/g)];
+  
+  matches.forEach(match => {
+    if(terms.length < count && match[1].length > 5) {
+      terms.push(match[1]);
+    }
   });
   
-  // Add copy functionality
-  studyContent.addEventListener('click', (event) => {
-    const target = event.target.closest('.copy-term-btn');
-    if(target){
-      const term = target.dataset.term;
-      const def = target.dataset.def;
-      const text = `🔵 ${term}\n\nDefinition: ${def}`;
-      
-      navigator.clipboard.writeText(text).then(() => {
-        toast('Term copied to clipboard!');
-      }).catch(() => {
-        const textArea = document.createElement('textarea');
-        textArea.value = text;
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-        toast('Term copied to clipboard!');
+  return terms;
+}
+
+function extractImportantSentences(text, count){
+  const sentences = text.split(/[.!?]/);
+  const important = [];
+  
+  sentences.forEach(sentence => {
+    if(important.length < count && sentence.length > 40 && sentence.length < 200) {
+      if(/(?:important|key|critical|essential|major|significant|note|remember)/i.test(sentence)) {
+        important.push(sentence.trim());
+      }
+    }
+  });
+  
+  return important;
+}
+
+function extractBasicKeyTerms(text){
+  const terms = [];
+  const matches = [...text.matchAll(/([A-Z][A-Za-z0-9\s\-&()]+)\s*(?:is|are|means|refers to|defined as)\s+([^.!?]{10,100})/gi)];
+  
+  matches.forEach(match => {
+    if(terms.length < 15) {
+      terms.push({
+        term: match[1].trim(),
+        definition: match[2].trim().substring(0, 100) + "..."
       });
     }
   });
   
-  // Add export button functionality
+  return terms;
+}
+
+function displayStudyGuide(guide){
+  const studyContent = $('#studyContent');
+  studyContent.innerHTML = '';
+  
+  // Display main title
+  const titleElement = document.createElement('div');
+  titleElement.className = 'mb-6';
+  titleElement.innerHTML = `
+    <h2 class="text-2xl font-bold text-gray-800 mb-2">📘 ${guide.title.toUpperCase()} - QUICK REVIEWER</h2>
+    <div class="h-1 w-24 bg-blue-500 rounded"></div>
+  `;
+  studyContent.appendChild(titleElement);
+  
+  // Display sections
+  guide.sections.forEach((section, index) => {
+    const sectionElement = document.createElement('div');
+    sectionElement.className = 'study-section p-4 rounded-lg mb-4';
+    
+    let sectionHTML = `
+      <h3 class="font-bold text-lg text-gray-800 mb-3 flex items-center">
+        <span class="bg-blue-100 text-blue-700 w-8 h-8 rounded-full flex items-center justify-center mr-3">${index + 1}</span>
+        ${section.title}
+      </h3>
+    `;
+    
+    // Add bullet points if available
+    if(section.bulletPoints && section.bulletPoints.length > 0) {
+      sectionHTML += '<div class="space-y-2 ml-11">';
+      section.bulletPoints.forEach(point => {
+        // Highlight key terms in bullet points
+        let processedPoint = point;
+        guide.keyTerms.forEach(term => {
+          if(point.includes(term.term)) {
+            processedPoint = point.replace(
+              new RegExp(`\\b${escapeReg(term.term)}\\b`, 'gi'),
+              `<span class="highlight-term">${term.term}</span>`
+            );
+          }
+        });
+        
+        sectionHTML += `
+          <div class="study-point text-gray-700">
+            ${processedPoint}
+          </div>
+        `;
+      });
+      sectionHTML += '</div>';
+    } else if(section.content) {
+      // Show content as paragraph
+      sectionHTML += `
+        <div class="text-gray-700 ml-11">
+          ${section.content.substring(0, 300)}${section.content.length > 300 ? '...' : ''}
+        </div>
+      `;
+    }
+    
+    // Add separator line between sections
+    if(index < guide.sections.length - 1) {
+      sectionHTML += '<div class="border-t border-gray-200 mt-4 pt-4"></div>';
+    }
+    
+    sectionElement.innerHTML = sectionHTML;
+    studyContent.appendChild(sectionElement);
+  });
+  
+  // Display key terms section if available
+  if(guide.keyTerms && guide.keyTerms.length > 0) {
+    const termsElement = document.createElement('div');
+    termsElement.className = 'study-section p-4 rounded-lg mb-4';
+    termsElement.innerHTML = `
+      <h3 class="font-bold text-lg text-gray-800 mb-3 flex items-center">
+        <span class="bg-purple-100 text-purple-700 w-8 h-8 rounded-full flex items-center justify-center mr-3">🔑</span>
+        Key Terms & Definitions
+      </h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 ml-11">
+        ${guide.keyTerms.slice(0, 10).map(term => `
+          <div class="p-3 bg-white border rounded hover:shadow-sm transition-shadow">
+            <div class="font-semibold text-gray-800">${term.term} ${term.abbreviation ? `(${term.abbreviation})` : ''}</div>
+            <div class="text-sm text-gray-600 mt-1">${term.definition.substring(0, 80)}${term.definition.length > 80 ? '...' : ''}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    studyContent.appendChild(termsElement);
+  }
+  
+  // Display memory tips if available
+  if(guide.memoryTips && guide.memoryTips.length > 0) {
+    const tipsElement = document.createElement('div');
+    tipsElement.className = 'memory-tip p-4 rounded-lg mb-4';
+    tipsElement.innerHTML = `
+      <h3 class="font-bold text-lg text-gray-800 mb-3 flex items-center">
+        <span class="bg-green-100 text-green-700 w-8 h-8 rounded-full flex items-center justify-center mr-3">🎯</span>
+        Memory Tips
+      </h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-2 ml-11">
+        ${guide.memoryTips.map(tip => `
+          <div class="p-2 bg-white bg-opacity-70 rounded text-sm">
+            • ${tip}
+          </div>
+        `).join('')}
+      </div>
+    `;
+    studyContent.appendChild(tipsElement);
+  }
+  
+  // Display contact information if available
+  if(guide.contactInfo && guide.contactInfo.length > 0) {
+    const contactElement = document.createElement('div');
+    contactElement.className = 'helpline-box p-4 rounded-lg';
+    contactElement.innerHTML = `
+      <h3 class="font-bold text-lg text-gray-800 mb-3 flex items-center">
+        <span class="bg-yellow-100 text-yellow-700 w-8 h-8 rounded-full flex items-center justify-center mr-3">🆘</span>
+        Contact Information
+      </h3>
+      <div class="space-y-2 ml-11">
+        ${guide.contactInfo.map(contact => `
+          <div class="p-3 bg-white bg-opacity-80 rounded">
+            <div class="font-semibold">${contact.label}</div>
+            <div class="text-lg font-mono mt-1">${contact.value}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    studyContent.appendChild(contactElement);
+  }
+  
+  // Add export functionality
   $('#exportStudyBtn').onclick = () => {
-    exportTermsToJSON(App.currentTerms);
+    exportStudyGuideToText(guide);
   };
 }
 
-function exportTermsToJSON(terms){
-  const exportData = {
-    document: $('#fileName').textContent || 'PDF Document',
-    extractedAt: new Date().toISOString(),
-    termCount: terms.length,
-    terms: terms.map(t => ({
-      term: t.term,
-      definition: t.definition,
-      confidence: t.confidence
-    }))
-  };
+function exportStudyGuideToText(guide){
+  let text = `📘 ${guide.title.toUpperCase()} - QUICK REVIEWER\n`;
+  text += '='.repeat(50) + '\n\n';
   
-  const blob = new Blob([JSON.stringify(exportData, null, 2)], {type: 'application/json'});
+  // Add sections
+  guide.sections.forEach((section, index) => {
+    text += `### ${section.title}\n`;
+    
+    if(section.bulletPoints && section.bulletPoints.length > 0) {
+      section.bulletPoints.forEach(point => {
+        text += `• ${point}\n`;
+      });
+    } else if(section.content) {
+      text += `${section.content.substring(0, 300)}${section.content.length > 300 ? '...' : ''}\n`;
+    }
+    
+    text += '\n';
+  });
+  
+  // Add key terms
+  if(guide.keyTerms && guide.keyTerms.length > 0) {
+    text += '### Key Terms & Definitions\n';
+    guide.keyTerms.forEach(term => {
+      text += `• ${term.term}${term.abbreviation ? ` (${term.abbreviation})` : ''}: ${term.definition}\n`;
+    });
+    text += '\n';
+  }
+  
+  // Add memory tips
+  if(guide.memoryTips && guide.memoryTips.length > 0) {
+    text += '### Memory Tips\n';
+    guide.memoryTips.forEach(tip => {
+      text += `🎯 ${tip}\n`;
+    });
+    text += '\n';
+  }
+  
+  // Create downloadable file
+  const blob = new Blob([text], {type: 'text/plain'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `quizpro-terms-${new Date().toISOString().slice(0,10)}.json`;
+  a.download = `study-guide-${new Date().toISOString().slice(0,10)}.txt`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
   
-  toast(`Exported ${terms.length} terms`);
+  toast('Study guide exported as text file');
 }
 
 $('#closeStudyModal').addEventListener('click', () => {
