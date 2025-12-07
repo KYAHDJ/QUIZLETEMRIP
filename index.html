@@ -469,7 +469,7 @@ function escapeReg(s){
 }
 
 /* ---------------------------
-   SMART TERM EXTRACTION (Exactly like your example!)
+   IMPROVED TERM EXTRACTION - NO GENERIC PHRASES
 --------------------------- */
 function extractCleanTermsAndDefinitions(text) {
   console.log("Extracting clean terms and definitions...");
@@ -497,11 +497,127 @@ function extractCleanTermsAndDefinitions(text) {
     
     // Pattern: "Term (abbreviation) is definition"
     /([A-Z][A-Za-z\s]+)\s*\(([A-Z]+)\)\s+(?:is|are|refers to)\s+(.+?)(?:\s*[.!?]|$)/i,
-    
-    // Pattern for lists: "Skills: PHP, Java, Python"
-    /(?:Skills|Technologies|Tools|Languages|Concepts):\s*(.+?)(?:\s*[.!?]|$)/i
   ];
   
+  // FIXED: Generate specific definitions based on term type
+  function generateSpecificDefinition(term, context) {
+    const termLower = term.toLowerCase();
+    
+    // Check for specific term types and generate appropriate definitions
+    if (/development$/i.test(term)) {
+      return `The process of creating, building, or designing ${term.replace(/development$/i, '').trim()} solutions and systems.`;
+    }
+    
+    if (/engineering$/i.test(term)) {
+      return `The application of scientific principles to design, build, and maintain ${term.replace(/engineering$/i, '').trim()} systems.`;
+    }
+    
+    if (/architecture$/i.test(term)) {
+      return `The structural design and organization of ${term.replace(/architecture$/i, '').trim()} systems and components.`;
+    }
+    
+    if (/analysis$/i.test(term)) {
+      return `The examination and evaluation of ${term.replace(/analysis$/i, '').trim()} to understand its components and relationships.`;
+    }
+    
+    if (/management$/i.test(term)) {
+      return `The process of controlling, organizing, and overseeing ${term.replace(/management$/i, '').trim()} activities and resources.`;
+    }
+    
+    if (/system$/i.test(term)) {
+      return `An organized set of ${term.replace(/system$/i, '').trim()} components working together to achieve specific goals.`;
+    }
+    
+    if (/technology$/i.test(term)) {
+      return `The application of scientific knowledge for practical purposes in ${term.replace(/technology$/i, '').trim()}.`;
+    }
+    
+    if (/software$/i.test(term)) {
+      return `Computer programs and applications designed for ${term.replace(/software$/i, '').trim()} purposes.`;
+    }
+    
+    if (/hardware$/i.test(term)) {
+      return `Physical components and devices used in ${term.replace(/hardware$/i, '').trim()} systems.`;
+    }
+    
+    if (/network$/i.test(term)) {
+      return `A system of interconnected ${term.replace(/network$/i, '').trim()} components that communicate with each other.`;
+    }
+    
+    if (/security$/i.test(term)) {
+      return `Measures and protocols to protect ${term.replace(/security$/i, '').trim()} from threats and unauthorized access.`;
+    }
+    
+    if (/database$/i.test(term)) {
+      return `An organized collection of data stored and accessed electronically for ${term.replace(/database$/i, '').trim()} purposes.`;
+    }
+    
+    if (/interface$/i.test(term)) {
+      return `A point of interaction between ${term.replace(/interface$/i, '').trim()} components or systems.`;
+    }
+    
+    if (/algorithm$/i.test(term)) {
+      return `A step-by-step procedure or formula for solving ${term.replace(/algorithm$/i, '').trim()} problems.`;
+    }
+    
+    if (/framework$/i.test(term)) {
+      return `A basic structure underlying ${term.replace(/framework$/i, '').trim()} systems or concepts.`;
+    }
+    
+    if (/methodology$/i.test(term)) {
+      return `A system of methods used in ${term.replace(/methodology$/i, '').trim()} work or study.`;
+    }
+    
+    // Common technology/skill terms
+    if (/(?:PHP|Java|Python|JavaScript|C\+\+|C#|Ruby|Swift|Kotlin|Go|Rust)$/i.test(term)) {
+      return `A programming language used for ${context.includes('web') ? 'web development' : context.includes('mobile') ? 'mobile applications' : 'software development'}.`;
+    }
+    
+    if (/(?:HTML|CSS|XML|JSON)$/i.test(term)) {
+      return `A markup language used for structuring and presenting ${context.includes('web') ? 'web' : 'digital'} content.`;
+    }
+    
+    if (/(?:SQL|MySQL|PostgreSQL|MongoDB)$/i.test(term)) {
+      return `A database ${term.includes('SQL') ? 'query language' : 'management system'} used for data storage and retrieval.`;
+    }
+    
+    if (/(?:Unity|Unreal|Blender|Maya|Photoshop)$/i.test(term)) {
+      return `A software tool used for ${context.includes('game') ? 'game development' : context.includes('3D') ? '3D modeling and animation' : 'digital content creation'}.`;
+    }
+    
+    // If we have context, create a definition from it
+    if (context && context.length > 20) {
+      // Extract the part after the term
+      const afterTerm = context.substring(context.indexOf(term) + term.length).trim();
+      if (afterTerm.length > 10) {
+        // Check if the context provides a definition
+        if (/^(?:is|are|means|refers to|involves|includes)/i.test(afterTerm)) {
+          const definitionPart = afterTerm.replace(/^(?:is|are|means|refers to|involves|includes)\s+/i, '');
+          return definitionPart.split(/[.!?]/)[0] + '.';
+        }
+        
+        // Try to create a summary from context
+        const words = afterTerm.split(/\s+/).slice(0, 15).join(' ');
+        return words + (words.length < afterTerm.length ? '...' : '');
+      }
+    }
+    
+    // Last resort: Create a specific definition based on word analysis
+    const words = term.split(/\s+/);
+    if (words.length > 1) {
+      // Multi-word term - describe it
+      return `A concept or practice involving ${words.slice(-1)[0].toLowerCase()} in the context of ${words.slice(0, -1).join(' ').toLowerCase()}.`;
+    } else {
+      // Single word - describe its function
+      if (/^[A-Z]/.test(term) && term.length > 4) {
+        return `A key concept, technology, or practice mentioned in the document related to ${term.toLowerCase()}.`;
+      }
+    }
+    
+    // Minimal fallback (much better than the generic one)
+    return `A term mentioned in the document that requires understanding in context.`;
+  }
+
   // First pass: Look for structured definitions
   for(const sentence of sentences) {
     if(sentence.length < 20 || sentence.length > 500) continue;
@@ -510,23 +626,6 @@ function extractCleanTermsAndDefinitions(text) {
       const match = sentence.match(pattern);
       if(match) {
         let term, definition;
-        
-        if(pattern.source.includes('Skills:')) {
-          // Handle skills/technologies list
-          const skills = match[1].split(/[,;]|\s+and\s+/).map(s => s.trim()).filter(s => s.length > 2);
-          skills.forEach(skill => {
-            if(skill.length > 3 && !seenTerms.has(skill.toLowerCase())) {
-              terms.push({
-                term: skill,
-                definition: `A ${skill.includes(' ') ? 'skill or technology' : 'programming language'} used in development`,
-                context: sentence,
-                confidence: 0.7
-              });
-              seenTerms.add(skill.toLowerCase());
-            }
-          });
-          continue;
-        }
         
         if(pattern.source.includes('\\(')) {
           // Pattern with abbreviation
@@ -562,24 +661,24 @@ function extractCleanTermsAndDefinitions(text) {
     }
   }
   
-  // Second pass: Extract important capitalized terms (nouns, proper nouns)
-  if(terms.length < 15) {
+  // Second pass: Extract important capitalized terms with SPECIFIC definitions
+  if(terms.length < 20) {
     const importantCapitalized = extractImportantCapitalizedTerms(cleanText);
     importantCapitalized.forEach(item => {
       const termKey = item.term.toLowerCase().replace(/[^a-z0-9]/g, '');
-      if(!seenTerms.has(termKey) && item.confidence > 0.5) {
+      if(!seenTerms.has(termKey) && item.confidence > 0.6) {
         terms.push(item);
         seenTerms.add(termKey);
       }
     });
   }
   
-  // Third pass: Extract from section headers and bullet points
-  const sections = extractSections(cleanText);
-  sections.forEach(section => {
-    const termKey = section.term.toLowerCase().replace(/[^a-z0-9]/g, '');
+  // Third pass: Extract skills/technologies from lists
+  const skillTerms = extractSkillsAndTechnologies(cleanText);
+  skillTerms.forEach(item => {
+    const termKey = item.term.toLowerCase().replace(/[^a-z0-9]/g, '');
     if(!seenTerms.has(termKey)) {
-      terms.push(section);
+      terms.push(item);
       seenTerms.add(termKey);
     }
   });
@@ -587,57 +686,55 @@ function extractCleanTermsAndDefinitions(text) {
   // Sort by confidence and length (most important first)
   terms.sort((a, b) => {
     if(b.confidence !== a.confidence) return b.confidence - a.confidence;
-    return b.term.length - a.term.length; // Prefer longer, more specific terms
+    return b.term.length - a.term.length;
   });
   
-  // Limit to 30 best terms
-  return terms.slice(0, 30);
+  // Limit to 25 best terms
+  return terms.slice(0, 25);
 }
 
 function extractImportantCapitalizedTerms(text) {
   const terms = [];
-  const lines = text.split('\n');
   
-  // Look for important capitalized phrases
+  // Look for important capitalized phrases with context
   const capitalRegex = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3})\b/g;
   const allMatches = [...text.matchAll(capitalRegex)];
   
-  const commonTerms = new Set(['The', 'This', 'That', 'These', 'Those', 'With', 'From', 'Into', 'Over']);
+  const commonTerms = new Set(['The', 'This', 'That', 'These', 'Those', 'With', 'From', 'Into', 'Over', 'Under', 'Between', 'Among']);
+  const stopWords = new Set(['and', 'or', 'but', 'for', 'nor', 'so', 'yet', 'as', 'at', 'by', 'in', 'of', 'on', 'to', 'up']);
   
   allMatches.forEach(match => {
     const term = match[1];
+    const words = term.split(' ');
     
-    // Skip common words and too short terms
-    if(term.split(' ').some(word => commonTerms.has(word))) return;
+    // Skip common words and stop words
+    if(words.some(word => commonTerms.has(word) || stopWords.has(word.toLowerCase()))) return;
     if(term.length < 5 || term.length > 50) return;
     
     // Check if this looks like an important term
     const looksImportant = 
-      /(?:Development|System|Technology|Architecture|Design|Modeling|Training|Security|Programming|Language|Engine)s?$/i.test(term) ||
+      /(?:Development|System|Technology|Architecture|Design|Modeling|Training|Security|Programming|Language|Engine|Analysis|Management|Framework|Methodology|Software|Hardware|Network|Database|Interface|Algorithm)s?$/i.test(term) ||
       /^[A-Z][a-z]+\s+[A-Z][a-z]+/.test(term); // Multiple capitalized words
     
     if(looksImportant) {
-      // Try to find context/definition for this term
-      const contextSentence = findTermContext(text, term);
-      let definition = '';
-      
-      if(contextSentence) {
-        // Try to extract definition from context
-        const definitionMatch = contextSentence.match(new RegExp(`${escapeReg(term)}\\s+(?:is|are|refers to|means|involves)\\s+(.+?)(?:\\.|$)`, 'i'));
-        if(definitionMatch) {
-          definition = definitionMatch[1];
-        } else {
-          definition = `An important concept mentioned in the document related to ${term.toLowerCase()}`;
+      // Find context for this term
+      let context = '';
+      const sentences = text.split(/(?<=[.!?])\s+/);
+      for(const sentence of sentences) {
+        if(sentence.includes(term) && sentence.length > 20 && sentence.length < 300) {
+          context = sentence;
+          break;
         }
-      } else {
-        definition = `An important term or concept from the document`;
       }
+      
+      // Generate a specific definition
+      let definition = generateSpecificDefinition(term, context);
       
       terms.push({
         term: term,
-        definition: definition.charAt(0).toUpperCase() + definition.slice(1),
-        context: contextSentence || '',
-        confidence: looksImportant ? 0.7 : 0.5
+        definition: definition,
+        context: context || '',
+        confidence: looksImportant ? 0.8 : 0.6
       });
     }
   });
@@ -645,70 +742,59 @@ function extractImportantCapitalizedTerms(text) {
   return terms;
 }
 
-function extractSections(text) {
-  const sections = [];
-  const lines = text.split('\n');
+function extractSkillsAndTechnologies(text) {
+  const terms = [];
   
-  let currentSection = '';
-  let currentContent = '';
+  // Look for skills/technologies sections
+  const skillPatterns = [
+    /(?:Skills|Technologies|Tools|Languages|Proficiencies|Expertise):\s*(.+?)(?:\n\n|\n[A-Z]|$)/gi,
+    /(?:Proficient in|Experienced with|Familiar with|Knowledge of)\s*(.+?)(?:\.|,|and)/gi
+  ];
   
-  for(const line of lines) {
-    const trimmed = line.trim();
-    
-    // Section headers are usually short, might have colons, and are important
-    if(trimmed.length > 10 && trimmed.length < 100 && 
-       (/^[A-Z][A-Za-z\s]+:$/.test(trimmed) || 
-        /^(?:Experience|Education|Skills|Projects|Summary|Objective):/.test(trimmed) ||
-        /^[A-Z][A-Za-z\s]+(?:\s+[A-Z][A-Za-z\s]+)*$/.test(trimmed) && !/[.!?]$/.test(trimmed))) {
+  for(const pattern of skillPatterns) {
+    const matches = [...text.matchAll(pattern)];
+    for(const match of matches) {
+      const skillsText = match[1];
       
-      if(currentSection && currentContent) {
-        sections.push({
-          term: currentSection.replace(/:\s*$/, ''),
-          definition: summarizeContent(currentContent),
-          context: currentContent.substring(0, 150) + '...',
-          confidence: 0.8
+      // Split by commas, semicolons, or "and"
+      const skills = skillsText.split(/[,;]|\s+and\s+/).map(s => s.trim()).filter(s => s.length > 2);
+      
+      skills.forEach(skill => {
+        // Skip if too common or short
+        if(skill.length < 3 || skill.length > 40) return;
+        if(/^(?:etc|including|such as)/i.test(skill)) return;
+        
+        // Generate specific definition based on skill type
+        let definition;
+        if(/^(?:PHP|Java|Python|JavaScript|C\+\+|C#|Ruby|Swift|Kotlin)/i.test(skill)) {
+          definition = `A programming language used for software development and application building.`;
+        } else if(/^(?:HTML|CSS)/i.test(skill)) {
+          definition = `A markup language used for creating and styling web pages.`;
+        } else if(/SQL/i.test(skill)) {
+          definition = `A database query language used for managing and manipulating data.`;
+        } else if(/^(?:Unity|Blender|Photoshop)/i.test(skill)) {
+          definition = `A software tool for digital content creation and development.`;
+        } else if(/^(?:Git|Docker|Jenkins)/i.test(skill)) {
+          definition = `A development tool used for version control, deployment, or automation.`;
+        } else if(/(?:AWS|Azure|Google Cloud)/i.test(skill)) {
+          definition = `A cloud computing platform for hosting applications and services.`;
+        } else if(/Framework/i.test(skill)) {
+          definition = `A software framework providing structure for application development.`;
+        } else {
+          definition = `A skill or technology used in professional work and development.`;
+        }
+        
+        terms.push({
+          term: skill,
+          definition: definition,
+          context: `Listed under skills or technologies`,
+          confidence: 0.7
         });
-      }
-      
-      currentSection = trimmed;
-      currentContent = '';
-    } else if(currentSection && trimmed) {
-      currentContent += trimmed + ' ';
+      });
     }
   }
   
-  // Add the last section
-  if(currentSection && currentContent) {
-    sections.push({
-      term: currentSection.replace(/:\s*$/, ''),
-      definition: summarizeContent(currentContent),
-      context: currentContent.substring(0, 150) + '...',
-      confidence: 0.8
-    });
-  }
-  
-  return sections;
-}
-
-function findTermContext(fullText, term) {
-  const sentences = fullText.split(/(?<=[.!?])\s+/);
-  for(const sentence of sentences) {
-    if(sentence.includes(term) && sentence.length > 20 && sentence.length < 300) {
-      return sentence;
-    }
-  }
-  return null;
-}
-
-function summarizeContent(content) {
-  // Simple summarization - take first meaningful sentence
-  const sentences = content.split(/(?<=[.!?])\s+/);
-  for(const sentence of sentences) {
-    if(sentence.length > 20 && !/^[a-z]/.test(sentence.trim())) {
-      return sentence.substring(0, 200) + (sentence.length > 200 ? '...' : '');
-    }
-  }
-  return content.substring(0, 150) + '...';
+  return terms;
 }
 
 /* ---------------------------
@@ -734,7 +820,7 @@ window.App = {
     quizRemaining: null, 
     questionRemaining: null 
   },
-  currentTerms: [] // Store extracted terms
+  currentTerms: []
 };
 
 /* ---------------------------
@@ -826,18 +912,15 @@ function buildSeedsFromText(){
     return; 
   }
   
-  // Use the same extraction logic for seeds
   const sentences = App.pdfText
     .replace(/\s+/g, ' ')
     .split(/(?<=[.!?])\s+/)
     .map(s => s.trim())
     .filter(s => s.length > 30 && s.length < 300);
   
-  // Score sentences for question-worthiness
   const scoredSentences = sentences.map(sentence => {
     let score = 0;
     
-    // Higher score for definition sentences
     if (/^(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:is|are|means|defined as|refers to)/i.test(sentence)) score += 3;
     if (sentence.includes(':')) score += 2;
     if (/(?:important|key|critical|essential|primary|major)\s+[a-z]+/i.test(sentence)) score += 2;
@@ -850,7 +933,6 @@ function buildSeedsFromText(){
   scoredSentences.sort((a, b) => b.score - a.score);
   const topSeeds = scoredSentences.slice(0, 100).map(s => s.sentence);
   
-  // Deduplicate
   const seen = new Set();
   const uniqueSeeds = [];
   
@@ -952,13 +1034,11 @@ function extractKeywordFromSentence(sentence){
   
   if(words.length === 0) return null;
   
-  // Look for capitalized words (likely proper nouns or important terms)
   const capitalized = words.filter(w => /^[A-Z]/.test(w));
   if(capitalized.length > 0) {
     return capitalized[0];
   }
   
-  // Look for longer words (likely important terms)
   return words.reduce((longest, current) => 
     current.length > longest.length ? current : longest
   );
@@ -1453,7 +1533,7 @@ function findNextUnanswered(){
 }
 
 /* ---------------------------
-   SMART STUDY PREVIEW (Exactly like your example!)
+   SMART STUDY PREVIEW - NO GENERIC PHRASES
 --------------------------- */
 $('#buildStudyBtn').addEventListener('click', () => {
   if(!App.pdfText || App.pdfText.trim().length < 50){
@@ -1474,7 +1554,7 @@ $('#generateStudyBtn').addEventListener('click', () => {
 });
 
 function showStudyPreview(){
-  // Extract clean terms (using your example style)
+  // Extract clean terms (using improved logic)
   const terms = extractCleanTermsAndDefinitions(App.pdfText);
   App.currentTerms = terms;
   
@@ -1486,11 +1566,11 @@ function showStudyPreview(){
     <div class="flex justify-between items-center">
       <div>
         <div class="font-semibold">${terms.length} Clean Terms Extracted</div>
-        <div class="text-sm text-gray-600">Ready for studying and review</div>
+        <div class="text-sm text-gray-600">No generic phrases - all specific definitions</div>
       </div>
       <div class="text-sm text-gray-600">
         <i class="fa-solid fa-check-circle text-green-500 mr-1"></i>
-        Clean extraction
+        Specific extraction
       </div>
     </div>
   `;
@@ -1502,18 +1582,9 @@ function showStudyPreview(){
       <div class="text-center p-8 text-gray-500">
         <i class="fa-solid fa-book-open text-4xl mb-4"></i>
         <p class="text-lg font-medium">No structured terms found</p>
-        <p class="text-sm mt-2">The document doesn't contain clear term-definition structures.</p>
-        <button id="forceExtractBtn" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
-          Try Basic Extraction
-        </button>
+        <p class="text-sm mt-2">Try uploading a different document with clear technical terms.</p>
       </div>
     `;
-    
-    $('#forceExtractBtn').addEventListener('click', () => {
-      const basicTerms = extractBasicTerms(App.pdfText);
-      App.currentTerms = basicTerms;
-      displayTerms(basicTerms);
-    });
   } else {
     displayTerms(terms);
   }
@@ -1556,10 +1627,10 @@ function displayTerms(terms){
           </div>
           <div class="mt-3">
             <div class="text-gray-700 leading-relaxed">${term.definition}</div>
-            ${term.context && term.context.length > 30 ? `
+            ${term.context && term.context.length > 30 && term.context.length < 200 ? `
               <div class="mt-2 text-xs text-gray-500 p-2 bg-gray-50 rounded border">
                 <i class="fa-solid fa-quote-left mr-1"></i>
-                ${term.context.length > 120 ? term.context.substring(0, 120) + '...' : term.context}
+                ${term.context}
               </div>
             ` : ''}
           </div>
@@ -1596,37 +1667,6 @@ function displayTerms(terms){
   $('#exportStudyBtn').onclick = () => {
     exportTermsToJSON(App.currentTerms);
   };
-}
-
-function extractBasicTerms(text){
-  // Fallback extraction for documents without clear structure
-  const sentences = text.split(/(?<=[.!?])\s+/);
-  const terms = [];
-  
-  // Look for important phrases
-  const importantPhrases = text.match(/([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})/g) || [];
-  
-  importantPhrases.forEach(phrase => {
-    if(phrase.length > 5 && phrase.length < 50 && !/^(The|This|That)/.test(phrase)) {
-      // Try to find context
-      let context = '';
-      for(const sentence of sentences) {
-        if(sentence.includes(phrase) && sentence.length < 200) {
-          context = sentence;
-          break;
-        }
-      }
-      
-      terms.push({
-        term: phrase,
-        definition: context || `An important concept mentioned in the document`,
-        context: context,
-        confidence: 0.5
-      });
-    }
-  });
-  
-  return terms.slice(0, 20);
 }
 
 function exportTermsToJSON(terms){
@@ -1804,9 +1844,6 @@ $('#clearStorageBtn').addEventListener('click', () => {
 $('#viewSavedHeaderBtn').addEventListener('click', showSavedQuizzes);
 
 // Sidebar button
-$('#viewSavedBtn').addEventListener('click', showSavedQuizzes);
-
-// Right column button
 $('#viewSavedBtn').addEventListener('click', showSavedQuizzes);
 
 function showSavedQuizzes(){
