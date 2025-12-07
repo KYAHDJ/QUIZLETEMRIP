@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -27,6 +26,14 @@
 .option-correct { background:#dcfce7 !important; border-color:#16a34a !important; }
 .option-wrong { background:#fee2e2 !important; border-color:#ef4444 !important; }
 .fade { opacity:.35; pointer-events:none; }
+/* New style for saved quiz items */
+.saved-quiz-item {
+  transition: all 0.2s ease;
+}
+.saved-quiz-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
 </style>
 
 <!-- Force Browser (Block Messenger / FB / IG in-app) -->
@@ -71,13 +78,13 @@
     // Still in in-app browser → block
     document.getElementById("inAppBlock").classList.remove("hidden");
     document.getElementById("openExternalBtn").onclick = ()=>{
-  try {
-    // Android Chrome
-    window.location.href = "intent://" + window.location.host + window.location.pathname + "#Intent;scheme=https;package=com.android.chrome;end";
-  } catch(err){
-    alert("Please open this page in Chrome using ••• menu → Open in browser.");
-  }
-};
+      try {
+        // Android Chrome
+        window.location.href = "intent://" + window.location.host + window.location.pathname + "#Intent;scheme=https;package=com.android.chrome;end";
+      } catch(err){
+        alert("Please open this page in Chrome using ••• menu → Open in browser.");
+      }
+    };
   }
 })();
 </script>
@@ -98,7 +105,7 @@
       </div>
     </div>
 
-    <div class="px-3 py-2 bg-white border rounded-full flex items-center gap-2">
+    <div class="px-3 py-2 bg-white border rounded-full flex items-center gap-2 cursor-pointer hover:bg-yellow-50 transition-colors" id="coinsContainer">
       <i class="fa-solid fa-coins text-yellow-500"></i>
       <span id="coinsTop">100</span>
     </div>
@@ -109,18 +116,18 @@
 <aside id="sidebarNav" class="fixed top-0 left-0 bg-white shadow-lg w-64 h-full z-50 p-4 overflow-y-auto">
   <div class="flex justify-between items-center mb-3">
     <h3 class="font-semibold">Navigator</h3>
-    <button id="closeNav" class="text-gray-500"><i class="fa-solid fa-xmark"></i></button>
+    <button id="closeNav" class="text-gray-500 hover:text-gray-700"><i class="fa-solid fa-xmark"></i></button>
   </div>
 
   <div id="questionGrid" class="grid grid-cols-5 gap-2 mb-4"></div>
 
-  <button id="saveQuizBtn" class="w-full px-3 py-2 bg-blue-600 text-white rounded-lg mb-2">
+  <button id="saveQuizBtn" class="w-full px-3 py-2 bg-blue-600 text-white rounded-lg mb-2 hover:bg-blue-700 transition-colors">
     <i class="fa-solid fa-save"></i> Save Quiz
   </button>
-  <button id="exportAllBtn" class="w-full px-3 py-2 bg-gray-100 rounded-lg mb-2">
+  <button id="exportAllBtn" class="w-full px-3 py-2 bg-gray-100 rounded-lg mb-2 hover:bg-gray-200 transition-colors">
     <i class="fa-solid fa-download"></i> Export Seeds
   </button>
-  <button id="clearStorageBtn" class="w-full px-3 py-2 bg-red-100 rounded-lg">
+  <button id="clearStorageBtn" class="w-full px-3 py-2 bg-red-100 rounded-lg hover:bg-red-200 transition-colors">
     <i class="fa-solid fa-trash"></i> Clear Saved
   </button>
 
@@ -169,9 +176,9 @@ document.getElementById("closeNav").onclick = ()=> {
       <h2 class="font-semibold">Upload PDF</h2>
       <p class="text-sm text-gray-500">Drop a PDF or click Browse.</p>
 
-      <div id="dropArea" class="mt-3 border-2 border-dashed border-blue-300 rounded-xl p-6 text-center cursor-pointer">
+      <div id="dropArea" class="mt-3 border-2 border-dashed border-blue-300 rounded-xl p-6 text-center cursor-pointer hover:bg-blue-50 transition-colors">
         <div class="text-gray-600">Drop PDF here</div>
-        <button id="browseBtn" class="mt-3 px-4 py-2 bg-blue-600 text-white rounded-md">Browse</button>
+        <button id="browseBtn" class="mt-3 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">Browse</button>
         <input id="pdfInput" type="file" accept=".pdf" class="hidden" />
       </div>
 
@@ -182,7 +189,7 @@ document.getElementById("closeNav").onclick = ()=> {
 
       <div id="progressWrapper" class="hidden mt-3">
         <div class="h-2 bg-gray-200 rounded">
-          <div id="progressBar" class="h-full bg-blue-600 rounded" style="width:0%"></div>
+          <div id="progressBar" class="h-full bg-blue-600 rounded transition-all duration-300" style="width:0%"></div>
         </div>
         <div id="progressText" class="text-xs text-gray-500 mt-1">Processing…</div>
       </div>
@@ -198,19 +205,18 @@ document.getElementById("closeNav").onclick = ()=> {
           <select id="numQuestions" class="mt-1 w-full border rounded p-2"></select>
         </div>
         <div class="grid grid-cols-2 gap-3 mt-3">
-  <div>
-    <label class="text-sm font-medium">Per Question Timer (seconds)</label>
-    <input id="questionTimerInput" class="mt-1 w-full border p-2 rounded" value="30" />
-  </div>
-  <div>
-    <label class="text-sm font-medium">Full Quiz Timer (seconds)</label>
-    <input id="quizTimerInput" class="mt-1 w-full border p-2 rounded" value="300" />
-  </div>
-</div>
-
-<button id="applyTimers" class="mt-3 px-3 py-2 bg-gray-100 rounded">
-  Apply Timers
-</button>
+          <div>
+            <label class="text-sm font-medium">Per Question Timer (seconds)</label>
+            <input id="questionTimerInput" class="mt-1 w-full border p-2 rounded" value="30" />
+          </div>
+          <div>
+            <label class="text-sm font-medium">Full Quiz Timer (seconds)</label>
+            <input id="quizTimerInput" class="mt-1 w-full border p-2 rounded" value="300" />
+          </div>
+        </div>
+        <button id="applyTimers" class="mt-3 px-3 py-2 bg-gray-100 rounded hover:bg-gray-200 transition-colors">
+          Apply Timers
+        </button>
         <div>
           <label class="text-sm font-medium">Difficulty</label>
           <select id="difficulty" class="mt-1 w-full border rounded p-2">
@@ -228,11 +234,11 @@ document.getElementById("closeNav").onclick = ()=> {
       </div>
 
       <div class="flex gap-3 mt-4">
-        <button id="genBtn" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-md">
+        <button id="genBtn" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-md hover:opacity-90 transition-opacity">
           Generate
         </button>
 
-        <button id="buildStudyBtn" class="px-4 py-2 bg-gray-100 rounded-md">Study Preview</button>
+        <button id="buildStudyBtn" class="px-4 py-2 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">Study Preview</button>
 
         <div class="ml-auto text-sm text-gray-600">
           Seeds: <span id="seedCount">0</span>
@@ -259,9 +265,9 @@ document.getElementById("closeNav").onclick = ()=> {
       </div>
 
       <div class="flex gap-3 mt-3">
-        <button id="pu5050" class="px-3 py-2 bg-gray-100 rounded-md">50:50 <span id="count5050">3</span></button>
-        <button id="puHint" class="px-3 py-2 bg-gray-100 rounded-md"><i class="fa-solid fa-lightbulb"></i> <span id="countHint">3</span></button>
-        <button id="puSkip" class="px-3 py-2 bg-gray-100 rounded-md">Skip <span id="countSkip">2</span></button>
+        <button id="pu5050" class="px-3 py-2 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">50:50 <span id="count5050">3</span></button>
+        <button id="puHint" class="px-3 py-2 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"><i class="fa-solid fa-lightbulb"></i> <span id="countHint">3</span></button>
+        <button id="puSkip" class="px-3 py-2 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">Skip <span id="countSkip">2</span></button>
       </div>
 
       <div id="qText" class="mt-4 text-lg font-semibold"></div>
@@ -271,26 +277,22 @@ document.getElementById("closeNav").onclick = ()=> {
       <div id="hint" class="hidden mt-3 p-3 bg-yellow-50 border rounded"></div>
 
       <div class="flex gap-3 mt-4">
-        <button id="prevBtn" class="px-3 py-2 bg-gray-100 rounded-md">Prev</button>
-        <button id="nextBtn" class="px-3 py-2 bg-gray-100 rounded-md">Next</button>
-        <button id="submitBtn" class="ml-auto px-4 py-2 bg-blue-600 text-white rounded-md">Submit</button>
+        <button id="prevBtn" class="px-3 py-2 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">Prev</button>
+        <button id="nextBtn" class="px-3 py-2 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">Next</button>
+        <button id="submitBtn" class="ml-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">Submit</button>
       </div>
     </div>
 
-
-
-
-
-<!-- RESULTS CARD -->
+    <!-- RESULTS CARD -->
     <div id="resultsCard" class="bg-white rounded-xl shadow p-4 mb-4 hidden">
       <h3 class="text-lg font-bold">Results</h3>
       <div id="resultsSummary" class="mt-2"></div>
       <div id="resultsList" class="mt-3 space-y-2"></div>
 
       <div class="flex gap-3 mt-4">
-        <button id="retryWrong" class="px-3 py-2 bg-red-100 rounded-md">Retry Wrong</button>
-        <button id="retryAll" class="px-3 py-2 bg-blue-100 rounded-md">Retry All</button>
-        <button id="exportResults" class="px-3 py-2 bg-gray-100 rounded-md">Export Results</button>
+        <button id="retryWrong" class="px-3 py-2 bg-red-100 rounded-md hover:bg-red-200 transition-colors">Retry Wrong</button>
+        <button id="retryAll" class="px-3 py-2 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors">Retry All</button>
+        <button id="exportResults" class="px-3 py-2 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">Export Results</button>
       </div>
     </div>
 
@@ -306,9 +308,9 @@ document.getElementById("closeNav").onclick = ()=> {
   <aside class="hidden md:block">
     <div class="bg-white rounded-xl shadow p-4 sticky top-24">
       <h4 class="font-semibold mb-2">Controls</h4>
-      <button id="openFull" class="w-full mb-2 px-3 py-2 bg-gray-100 rounded">Open Fullscreen</button>
-      <button id="viewSavedBtn" class="w-full mb-2 px-3 py-2 bg-blue-50 rounded">View Saved</button>
-      <button id="viewResultsBtn" class="w-full px-3 py-2 bg-blue-50 rounded">View Results</button>
+      <button id="openFull" class="w-full mb-2 px-3 py-2 bg-gray-100 rounded hover:bg-gray-200 transition-colors">Open Fullscreen</button>
+      <button id="viewSavedBtn" class="w-full mb-2 px-3 py-2 bg-blue-50 rounded hover:bg-blue-100 transition-colors">View Saved</button>
+      <button id="viewResultsBtn" class="w-full px-3 py-2 bg-blue-50 rounded hover:bg-blue-100 transition-colors">View Results</button>
     </div>
   </aside>
 
@@ -319,7 +321,7 @@ document.getElementById("closeNav").onclick = ()=> {
   <div class="bg-white rounded-lg max-w-4xl w-full p-4 max-h-[80vh] overflow-auto">
     <div class="flex justify-between items-center">
       <h3 class="font-semibold">Study Preview — Terms & Definitions</h3>
-      <button id="closeStudyModal" class="text-gray-500">Close</button>
+      <button id="closeStudyModal" class="text-gray-500 hover:text-gray-700 transition-colors">Close</button>
     </div>
     <div id="studyContent" class="mt-3 space-y-4"></div>
   </div>
@@ -330,20 +332,20 @@ document.getElementById("closeNav").onclick = ()=> {
   <div class="bg-white rounded-lg p-4 max-w-md w-full">
     <div class="flex justify-between items-center">
       <h4 class="font-semibold">Store</h4>
-      <button id="closeShop" class="text-gray-500">Close</button>
+      <button id="closeShop" class="text-gray-500 hover:text-gray-700 transition-colors">Close</button>
     </div>
     <div class="mt-3 space-y-3">
-      <div class="flex justify-between items-center p-3 border rounded">
+      <div class="flex justify-between items-center p-3 border rounded hover:bg-gray-50 transition-colors">
         <div><b>50:50</b><div class="text-sm text-gray-500">Remove two wrong options</div></div>
-        <button class="shopBuy px-3 py-1 bg-blue-600 text-white rounded" data-power="5050" data-price="80">Buy 80</button>
+        <button class="shopBuy px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors" data-power="5050" data-price="80">Buy 80</button>
       </div>
-      <div class="flex justify-between items-center p-3 border rounded">
+      <div class="flex justify-between items-center p-3 border rounded hover:bg-gray-50 transition-colors">
         <div><b>Hint</b><div class="text-sm text-gray-500">Reveal a hint</div></div>
-        <button class="shopBuy px-3 py-1 bg-blue-600 text-white rounded" data-power="hint" data-price="60">Buy 60</button>
+        <button class="shopBuy px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors" data-power="hint" data-price="60">Buy 60</button>
       </div>
-      <div class="flex justify-between items-center p-3 border rounded">
+      <div class="flex justify-between items-center p-3 border rounded hover:bg-gray-50 transition-colors">
         <div><b>Skip</b><div class="text-sm text-gray-500">Skip a question</div></div>
-        <button class="shopBuy px-3 py-1 bg-blue-600 text-white rounded" data-power="skip" data-price="50">Buy 50</button>
+        <button class="shopBuy px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors" data-power="skip" data-price="50">Buy 50</button>
       </div>
     </div>
   </div>
@@ -353,7 +355,7 @@ document.getElementById("closeNav").onclick = ()=> {
   <div class="bg-white rounded-lg p-4 max-w-md w-full">
     <div class="flex justify-between items-center">
       <h4 class="font-semibold">Save Quiz</h4>
-      <button id="closeSave" class="text-gray-500">Close</button>
+      <button id="closeSave" class="text-gray-500 hover:text-gray-700 transition-colors">Close</button>
     </div>
 
     <div class="mt-3 space-y-2">
@@ -365,15 +367,15 @@ document.getElementById("closeNav").onclick = ()=> {
       </select>
 
       <div class="flex gap-2 mt-3">
-        <button id="saveToLocal" class="px-3 py-2 bg-blue-600 text-white rounded">Save</button>
-        <button id="cancelSave" class="px-3 py-2 bg-gray-100 rounded">Cancel</button>
+        <button id="saveToLocal" class="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">Save</button>
+        <button id="cancelSave" class="px-3 py-2 bg-gray-100 rounded hover:bg-gray-200 transition-colors">Cancel</button>
       </div>
     </div>
   </div>
 </div>
 
 <!-- Toast -->
-<div id="toast" class="fixed top-6 right-6 hidden bg-white rounded shadow px-4 py-2 z-50"></div>
+<div id="toast" class="fixed top-6 right-6 hidden bg-white rounded shadow px-4 py-2 z-50 shadow-lg"></div>
 
 <!-- Audio -->
 <audio id="correctSound" src="https://www.soundjay.com/buttons/sounds/button-1.mp3" preload="auto"></audio>
@@ -383,133 +385,350 @@ document.getElementById("closeNav").onclick = ()=> {
 
 <script>
 /* ---------------------------
-   Helpers & State (completes Part 1)
+   Helpers & State
 --------------------------- */
 const $ = s => document.querySelector(s);
-const el = (t, c, txt) => { const e = document.createElement(t); if(c) e.className = c; if(txt!==undefined) e.textContent = txt; return e; };
+const $$ = s => document.querySelectorAll(s);
+const el = (t, c, txt) => { 
+  const e = document.createElement(t); 
+  if(c) e.className = c; 
+  if(txt!==undefined) e.textContent = txt; 
+  return e; 
+};
 
 function toast(msg, ms=1600){
-  const t = $('#toast'); t.textContent = msg; t.classList.remove('hidden');
+  const t = $('#toast'); 
+  t.textContent = msg; 
+  t.classList.remove('hidden');
   setTimeout(()=> t.classList.add('hidden'), ms);
 }
-function playSound(sel){ try{ const a = document.querySelector(sel); if(a){ a.currentTime=0; a.play().catch(()=>{}); } }catch(e){} }
 
-/* ---------------------------
-   Dropdown bug fix: ensure proper default populated
-   Called after seeds built.
---------------------------- */
-function ensureNumDropdown(defaultCount=10){
-  const sel = $('#numQuestions');
-  sel.innerHTML = '';
-  const max = Math.max(1, Math.min(50, defaultCount));
-  for(let i = max; i>=1; i--){
-    const o = document.createElement('option'); o.value = i; o.textContent = i;
-    sel.appendChild(o);
-  }
-  sel.value = Math.min(10, max);
+function playSound(sel){ 
+  try{ 
+    const a = $(sel); 
+    if(a){ 
+      a.currentTime=0; 
+      a.play().catch(()=>{}); 
+    } 
+  }catch(e){} 
 }
 
 /* ---------------------------
-   Seed/Question generation code (robust)
-   Note: These functions mirror Part1 but finalize behavior here
+   Improved Text Processing Functions
 --------------------------- */
-function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; }
-function escapeReg(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+function shuffle(a){ 
+  for(let i=a.length-1;i>0;i--){ 
+    const j=Math.floor(Math.random()*(i+1)); 
+    [a[i],a[j]]=[a[j],a[i]];
+  } 
+  return a; 
+}
 
+function escapeReg(s){ 
+  return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); 
+}
+
+/* ---------------------------
+   Smart Study Preview Extraction
+--------------------------- */
+function extractTermsAndDefinitions(text) {
+  const terms = [];
+  const sentences = text.split(/(?<=[.!?])\s+/).filter(s => s.length > 20);
+  
+  // Common patterns for definitions
+  const patterns = [
+    // "Term is definition"
+    /^([A-Z][A-Za-z0-9\s\-]{1,50}?)\s+(?:is|are|refers to|means|defined as|consists of|comprises|can be described as)\s+(.+?)(?:\s*[.!?]|$)/i,
+    // "Term: definition"
+    /^([A-Za-z0-9\s\-]{1,80}?):\s+(.+?)(?:\s*[.!?]|$)/,
+    // "Definition (Term)"
+    /^(.+?)\s*\(([A-Z][A-Za-z0-9\s\-]+)\)(?:\s*[.!?]|$)/,
+    // "Also known as" patterns
+    /(?:also known as|abbreviated as|commonly called|often referred to as)\s+([A-Z][A-Za-z0-9\s\-]+)/i
+  ];
+  
+  // Also look for bullet points or numbered lists
+  const listItems = text.match(/(?:^|\n)(?:\d+\.|\*|\-)\s+([A-Za-z].+?)(?=\n|$)/g) || [];
+  
+  for(const item of listItems) {
+    const clean = item.replace(/^(?:\d+\.|\*|\-)\s+/, '');
+    if(clean.length > 30 && clean.length < 300) {
+      terms.push({
+        term: clean.substring(0, 60) + (clean.length > 60 ? '...' : ''),
+        def: 'List item from document',
+        context: clean
+      });
+    }
+  }
+  
+  // Process sentences with patterns
+  for(const sentence of sentences) {
+    for(const pattern of patterns) {
+      const match = sentence.match(pattern);
+      if(match) {
+        let term, def;
+        if(pattern.source.includes('\\(([A-Z]')) {
+          // For "Definition (Term)" pattern
+          def = match[1].trim();
+          term = match[2].trim();
+        } else {
+          term = match[1].trim();
+          def = match[2].trim();
+        }
+        
+        if(term && def && term.length > 2 && def.length > 5) {
+          // Avoid duplicates
+          const exists = terms.some(t => 
+            t.term.toLowerCase() === term.toLowerCase() || 
+            t.def.toLowerCase().includes(term.toLowerCase())
+          );
+          
+          if(!exists && terms.length < 100) {
+            terms.push({
+              term: term.length > 80 ? term.substring(0, 77) + '...' : term,
+              def: def.length > 150 ? def.substring(0, 147) + '...' : def,
+              context: sentence
+            });
+          }
+        }
+        break; // Stop checking other patterns for this sentence
+      }
+    }
+  }
+  
+  // If no structured terms found, create summary chunks
+  if(terms.length === 0) {
+    const chunks = text.match(/.{1,400}[.!?\s](?=\s|$)/g) || [];
+    chunks.slice(0, 10).forEach((chunk, i) => {
+      terms.push({
+        term: `Summary Part ${i + 1}`,
+        def: chunk.trim().substring(0, 200) + (chunk.length > 200 ? '...' : ''),
+        context: 'Document summary'
+      });
+    });
+  }
+  
+  return terms.slice(0, 50); // Limit to 50 terms
+}
+
+/* ---------------------------
+   Improved Question Generation
+--------------------------- */
 function buildSeedsFromText(){
   const text = (window.App && App.pdfText) ? App.pdfText : '';
-  if(!text || text.trim().length < 20){ toast('No text found in PDF'); return; }
-  // improved splitting and scoring
-  const raw = text.replace(/\s+/g,' ').split(/(?<=[.?!])\s+/).map(s=>s.trim()).filter(s=>s.length>30);
-  const patterns = [/\b(is|are|refers to|defined as|consists of|composed of)\b/i, /:\s/, /\b(e\.g\.|for example|such as)\b/i];
-  let seeds = raw.filter(s => patterns.some(p=>p.test(s)));
-  if(seeds.length < 12) seeds = seeds.concat(raw.slice(0,200));
-  // dedupe
-  const seen = new Set(); const unique = [];
-  for(const s of seeds){
-    const k = s.toLowerCase().replace(/[^a-z0-9 ]+/g,'').slice(0,120);
-    if(!seen.has(k)){ seen.add(k); unique.push(s); }
+  if(!text || text.trim().length < 50){ 
+    toast('No sufficient text found in PDF'); 
+    return; 
   }
-  App.seeds = unique;
+  
+  // Improved sentence splitting with context preservation
+  const sentences = text.replace(/\s+/g, ' ')
+    .split(/(?<=[.!?])\s+(?=[A-Z])/)
+    .map(s => s.trim())
+    .filter(s => s.length > 30 && s.length < 500);
+  
+  // Score sentences for question-worthiness
+  const scoredSentences = sentences.map(sentence => {
+    let score = 0;
+    
+    // Higher score for sentences with definitions
+    if (/^(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:is|are|means|defined as|refers to)/i.test(sentence)) score += 3;
+    
+    // Higher score for sentences with colons (often definitions)
+    if (sentence.includes(':')) score += 2;
+    
+    // Higher score for sentences with important markers
+    if (/(?:important|key|critical|essential|primary|major)\s+[a-z]+/i.test(sentence)) score += 2;
+    
+    // Higher score for sentences with numbers or dates
+    if (/\d+/.test(sentence)) score += 1;
+    
+    // Higher score for longer sentences (more content)
+    if (sentence.length > 100) score += 1;
+    
+    return { sentence, score };
+  });
+  
+  // Sort by score and take top seeds
+  scoredSentences.sort((a, b) => b.score - a.score);
+  const topSeeds = scoredSentences.slice(0, 100).map(s => s.sentence);
+  
+  // Deduplicate
+  const seen = new Set();
+  const uniqueSeeds = [];
+  
+  for(const seed of topSeeds) {
+    const key = seed.toLowerCase()
+      .replace(/[^a-z0-9 ]+/g, '')
+      .substring(0, 100);
+    
+    if(!seen.has(key) && uniqueSeeds.length < 50) {
+      seen.add(key);
+      uniqueSeeds.push(seed);
+    }
+  }
+  
+  App.seeds = uniqueSeeds;
   $('#seedCount').textContent = App.seeds.length;
   rebuildNumDropdown(App.seeds.length);
+  
+  if(App.seeds.length === 0) {
+    toast('Could not extract meaningful content from PDF');
+  } else {
+    toast(`Extracted ${App.seeds.length} question seeds`);
+  }
 }
 
-/* rebuildNumDropdown (reliable) */
 function rebuildNumDropdown(max){
   const sel = $('#numQuestions');
   sel.innerHTML = '';
+  
   max = Math.max(1, Math.min(100, Math.floor(max)));
   const limit = Math.min(50, max);
-  for(let i=limit; i>=1; i--){
-    const o = document.createElement('option'); o.value = i; o.textContent = i;
+  
+  for(let i = 1; i <= limit; i++){
+    const o = document.createElement('option'); 
+    o.value = i; 
+    o.textContent = i;
+    if(i === Math.min(10, limit)) o.selected = true;
     sel.appendChild(o);
   }
-  // choose sensible default
-  sel.value = Math.min(10, limit);
 }
 
-/* Generate questions */
 function generateQuestionsFromSeeds(requested, focusArr, difficulty){
   requested = Math.max(1, parseInt(requested) || 10);
-  focusArr = (focusArr || []).map(s=>s.trim()).filter(Boolean).map(s=>s.toLowerCase());
-  const avail = App.seeds.slice();
+  focusArr = (focusArr || []).map(s => s.trim().toLowerCase()).filter(Boolean);
+  
+  const avail = [...App.seeds];
   const out = [];
   const used = new Set();
 
-  function pickKeyWord(sentence){
-    const words = sentence.split(/\s+/).map(w=>w.replace(/[^a-zA-Z]+/g,'')).filter(Boolean);
-    const candidates = words.filter(w=> w.length>4 && /^[A-Za-z]+$/.test(w) && !/^(the|this|that|there|which|where)$/i.test(w));
-    if(candidates.length===0) return null;
-    // prefer focus
-    for(const fk of focusArr){
-      const match = candidates.find(c => c.toLowerCase().includes(fk));
-      if(match) return match;
+  function extractKeyword(sentence){
+    // Try to find the most important word in the sentence
+    const words = sentence.split(/\s+/)
+      .map(w => w.replace(/[^a-zA-Z\-']+/g, ''))
+      .filter(w => w.length > 3 && !/^(this|that|there|which|where|when|what|who|how|why|have|has|had|been|being|does|did|doing|will|shall|should|could|would|might|must|can|may)$/i.test(w));
+    
+    if(words.length === 0) return null;
+    
+    // Prefer focus keywords
+    if(focusArr.length > 0){
+      for(const focus of focusArr){
+        const focusWord = words.find(w => 
+          w.toLowerCase().includes(focus) || 
+          w.toLowerCase().startsWith(focus)
+        );
+        if(focusWord) return focusWord;
+      }
     }
-    // prefer capitalized
-    const cap = candidates.find(c => /^[A-Z]/.test(c));
-    if(cap) return cap;
-    candidates.sort((a,b)=> b.length - a.length);
-    return candidates[0];
+    
+    // Prefer nouns (simple heuristic: capitalized words or longer words)
+    const nouns = words.filter(w => /^[A-Z]/.test(w) || w.length > 6);
+    if(nouns.length > 0){
+      // Pick the most unique noun (not common words)
+      const commonWords = new Set(['concept', 'process', 'system', 'method', 'approach', 'technique']);
+      const uniqueNouns = nouns.filter(w => !commonWords.has(w.toLowerCase()));
+      if(uniqueNouns.length > 0) return uniqueNouns[0];
+      return nouns[0];
+    }
+    
+    // Fallback to longest word
+    return words.reduce((longest, current) => 
+      current.length > longest.length ? current : longest
+    );
   }
 
-  function genDistractors(correct, sentence){
-    const base = [];
-    const words = sentence.split(/\s+/).map(w=>w.replace(/[^a-zA-Z]+/g,'')).filter(w=>w.length>3 && w.toLowerCase() !== correct.toLowerCase());
-    for(const w of words){
-      if(base.length>=3) break;
-      if(!base.includes(w)) base.push(w);
+  function generateDistractors(correct, sentence){
+    const distractors = new Set();
+    const words = sentence.split(/\s+/)
+      .map(w => w.replace(/[^a-zA-Z\-']+/g, ''))
+      .filter(w => w.length > 3 && w.toLowerCase() !== correct.toLowerCase());
+    
+    // Add similar words from the sentence
+    words.forEach(w => {
+      if(distractors.size < 3 && w !== correct) {
+        distractors.add(w);
+      }
+    });
+    
+    // If we need more distractors, generate some generic ones
+    const generic = [
+      'Different approach',
+      'Alternative method',
+      'Opposite concept',
+      'Similar but distinct',
+      'Common misconception',
+      'Basic principle',
+      'Fundamental aspect'
+    ];
+    
+    while(distractors.size < 3) {
+      const randomGeneric = generic[Math.floor(Math.random() * generic.length)];
+      distractors.add(randomGeneric);
     }
-    if(base.length < 3){
-      base.push(correct + ' (alt)');
-      base.push('Another concept');
-      base.push('A common alternative');
-    }
-    return [...new Set(base)].slice(0,3);
+    
+    return Array.from(distractors).slice(0, 3);
   }
 
-  while(out.length < requested && avail.length > 0){
-    const idx = Math.floor(Math.random()*Math.min(12, avail.length));
-    const seed = avail.splice(idx,1)[0];
-    const keyword = pickKeyWord(seed);
+  // Filter seeds by focus if specified
+  let candidateSeeds = [...avail];
+  if(focusArr.length > 0){
+    candidateSeeds = candidateSeeds.filter(seed => 
+      focusArr.some(focus => seed.toLowerCase().includes(focus))
+    );
+  }
+  
+  if(candidateSeeds.length === 0){
+    candidateSeeds = [...avail];
+  }
+
+  // Shuffle candidate seeds
+  shuffle(candidateSeeds);
+
+  for(let i = 0; i < Math.min(requested, candidateSeeds.length * 2); i++){
+    if(out.length >= requested) break;
+    
+    const seedIndex = i % candidateSeeds.length;
+    const seed = candidateSeeds[seedIndex];
+    const keyword = extractKeyword(seed);
+    
     if(!keyword) continue;
-    const qtext = seed.replace(new RegExp(`\\b${escapeReg(keyword)}\\b`, 'i'), '_____');
-    const distractors = genDistractors(keyword, seed);
-    const options = shuffle([keyword, ...distractors]).slice(0,4);
-    const ans = options.findIndex(o=> o === keyword);
-    const norm = qtext.toLowerCase().replace(/[^a-z0-9 ]+/g,'').slice(0,120);
-    if(used.has(norm)) continue;
-    used.add(norm);
-    out.push({question: qtext, options, ans, hint: `Key: ${keyword}`, context: seed});
+    
+    // Create cloze question
+    const regex = new RegExp(`\\b${escapeReg(keyword)}\\b`, 'gi');
+    const questionText = seed.replace(regex, '__________');
+    
+    // Skip if replacement didn't work or question is too short
+    if(questionText === seed || questionText.length < 20) continue;
+    
+    const distractors = generateDistractors(keyword, seed);
+    const options = shuffle([keyword, ...distractors]);
+    const answerIndex = options.indexOf(keyword);
+    
+    // Create a unique key for this question
+    const questionKey = questionText.toLowerCase()
+      .replace(/[^a-z0-9 ]+/g, '')
+      .substring(0, 100);
+    
+    if(!used.has(questionKey) && answerIndex !== -1){
+      used.add(questionKey);
+      out.push({
+        question: questionText,
+        options: options,
+        ans: answerIndex,
+        hint: `The missing term relates to: ${keyword}`,
+        context: seed,
+        difficulty: difficulty
+      });
+    }
   }
+  
   return out;
 }
 
 /* ---------------------------
-   Full JS: connect events (completes behavior)
+   Initialize App State
 --------------------------- */
-
-/* Initialize App state */
 window.App = {
   pdfText: '',
   seeds: [],
@@ -522,439 +741,1061 @@ window.App = {
   streak: 0,
   coins: 100,
   powerups: { '5050': 3, hint: 3, skip: 2 },
-  timers: { mode: 'question', quiz: 300, question: 30, interval: null, quizRemaining: null, questionRemaining: null }
+  timers: { 
+    mode: 'question', 
+    quiz: 300, 
+    question: 30, 
+    interval: null, 
+    quizRemaining: null, 
+    questionRemaining: null 
+  }
 };
 
-/* Wire upload */
-$('#browseBtn').addEventListener('click', ()=> $('#pdfInput').click());
-$('#pdfInput').addEventListener('change', e => { if(e.target.files[0]) loadPDF(e.target.files[0]); });
+/* ---------------------------
+   PDF Upload & Processing
+--------------------------- */
+$('#browseBtn').addEventListener('click', () => $('#pdfInput').click());
 
-['dragenter','dragover'].forEach(ev => $('#dropArea').addEventListener(ev, e=>{ e.preventDefault(); $('#dropArea').classList.add('bg-blue-100'); }));
-['dragleave','drop'].forEach(ev => $('#dropArea').addEventListener(ev, e=>{ e.preventDefault(); $('#dropArea').classList.remove('bg-blue-100'); }));
-$('#dropArea').addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer.files && e.dataTransfer.files[0]; if(f && f.type==='application/pdf') loadPDF(f); else toast('Please drop a PDF'); });
+$('#pdfInput').addEventListener('change', e => { 
+  if(e.target.files[0]) loadPDF(e.target.files[0]); 
+});
+
+// Drag and drop handlers
+['dragenter','dragover'].forEach(ev => {
+  $('#dropArea').addEventListener(ev, e => {
+    e.preventDefault(); 
+    $('#dropArea').classList.add('bg-blue-100', 'border-blue-400');
+  });
+});
+
+['dragleave','drop'].forEach(ev => {
+  $('#dropArea').addEventListener(ev, e => {
+    e.preventDefault(); 
+    $('#dropArea').classList.remove('bg-blue-100', 'border-blue-400');
+  });
+});
+
+$('#dropArea').addEventListener('drop', e => {
+  e.preventDefault(); 
+  const file = e.dataTransfer.files && e.dataTransfer.files[0];
+  if(file && file.type === 'application/pdf') {
+    loadPDF(file);
+  } else {
+    toast('Please drop a PDF file');
+  }
+});
 
 async function loadPDF(file){
   $('#fileInfo').classList.remove('hidden');
   $('#fileName').textContent = file.name;
   $('#fileSize').textContent = Math.round(file.size/1024) + ' KB';
   $('#progressWrapper').classList.remove('hidden');
-  $('#progressBar').style.width = '4%';
-  $('#progressText').textContent = 'Reading...';
+  $('#progressBar').style.width = '5%';
+  $('#progressText').textContent = 'Loading PDF...';
 
   try{
     const buffer = await file.arrayBuffer();
     const loadingTask = pdfjsLib.getDocument({data: buffer});
     const pdf = await loadingTask.promise;
     let allText = '';
-    for(let i=1;i<=pdf.numPages;i++){
+    
+    for(let i = 1; i <= pdf.numPages; i++){
       const page = await pdf.getPage(i);
       const content = await page.getTextContent();
-      const pageText = content.items.map(it=>it.str).join(' ');
-      allText += '\n\n' + pageText;
-      $('#progressBar').style.width = Math.round((i/pdf.numPages)*100) + '%';
-      $('#progressText').textContent = `Extracting page ${i} / ${pdf.numPages}`;
-      await new Promise(r=>setTimeout(r,10));
+      const pageText = content.items.map(item => item.str).join(' ');
+      allText += pageText + '\n\n';
+      
+      // Update progress
+      const progress = Math.round((i / pdf.numPages) * 95) + 5;
+      $('#progressBar').style.width = progress + '%';
+      $('#progressText').textContent = `Extracting page ${i} of ${pdf.numPages}`;
+      
+      // Small delay to show progress
+      await new Promise(resolve => setTimeout(resolve, 10));
     }
+    
     App.pdfText = allText;
     $('#progressBar').style.width = '100%';
-    $('#progressText').textContent = 'Extraction complete';
-    toast('PDF extracted');
-    buildSeedsFromText();
+    $('#progressText').textContent = 'Extraction complete!';
+    
+    setTimeout(() => {
+      $('#progressWrapper').classList.add('hidden');
+      toast('PDF successfully loaded and processed');
+      buildSeedsFromText();
+    }, 500);
+    
   } catch(err){
-    console.error(err); toast('Failed to read PDF'); $('#progressWrapper').classList.add('hidden');
+    console.error('PDF loading error:', err);
+    $('#progressWrapper').classList.add('hidden');
+    toast('Failed to read PDF. Please try another file.');
   }
 }
 
-/* Fix: ensure dropdown is initially populated even before PDF */
-rebuildNumDropdown(10); // default
-
-/* Generate button */
-$('#genBtn').addEventListener('click', ()=>{
-  if(!App.seeds || App.seeds.length === 0){ buildSeedsFromText(); if(!App.seeds.length) return toast('No content to generate from'); }
-  const desired = parseInt($('#numQuestions').value) || 10;
-  const focus = ($('#focusAreas').value || '').split(',').map(s=>s.trim()).filter(Boolean);
-  const difficulty = $('#difficulty').value || 'mixed';
-  if(App.seeds.length < desired){
-    rebuildNumDropdown(App.seeds.length);
-    return toast(`Only ${App.seeds.length} seeds available. Dropdown adjusted.`);
+/* ---------------------------
+   Quiz Generation & Management
+--------------------------- */
+$('#genBtn').addEventListener('click', () => {
+  if(!App.seeds || App.seeds.length === 0){
+    toast('Please upload a PDF first');
+    return;
   }
-  const qs = generateQuestionsFromSeeds(desired, focus, difficulty);
-  if(!qs || qs.length===0) return toast('Could not generate questions');
-  if(qs.length < desired){ rebuildNumDropdown(qs.length); toast(`Only ${qs.length} questions could be formed`); }
-  startQuizWith(qs);
+  
+  const desired = parseInt($('#numQuestions').value) || 10;
+  const focus = ($('#focusAreas').value || '').split(',').map(s => s.trim()).filter(Boolean);
+  const difficulty = $('#difficulty').value || 'mixed';
+  
+  if(App.seeds.length < desired){
+    toast(`Only ${App.seeds.length} seeds available. Generating ${App.seeds.length} questions.`);
+    rebuildNumDropdown(App.seeds.length);
+  }
+  
+  const questions = generateQuestionsFromSeeds(Math.min(desired, App.seeds.length), focus, difficulty);
+  
+  if(!questions || questions.length === 0){
+    toast('Could not generate questions. Try different focus keywords.');
+    return;
+  }
+  
+  startQuizWith(questions);
 });
 
-/* Start quiz helper */
 function startQuizWith(questions){
-  App.questions = questions.slice();
+  App.questions = [...questions];
   App.userAnswers = {};
   App.skipped = new Set();
   App.currentIndex = 0;
-  App.score = 0; App.correctCount = 0; App.streak = 0;
+  App.score = 0;
+  App.correctCount = 0;
+  App.streak = 0;
+  
+  // Reset powerups for new quiz
+  App.powerups = { '5050': 3, hint: 3, skip: 2 };
+  
+  // Show quiz card
   $('#quizCard').classList.remove('hidden');
   $('#resultsCard').classList.add('hidden');
   $('#savedCard').classList.add('hidden');
+  $('#uploadCard').classList.add('hidden');
+  $('#configureCard').classList.add('hidden');
+  
   buildNavigatorUI();
   loadQuestion(0);
   startTimers();
   updatePowerupUI();
-  toast(`Quiz started (${questions.length})`);
+  
+  toast(`Quiz started with ${questions.length} questions`);
 }
 
-/* Navigator UI builder */
+/* ---------------------------
+   Quiz Navigation & Display
+--------------------------- */
 function buildNavigatorUI(){
-  const grid = $('#questionGrid'); grid.innerHTML = '';
-  App.questions.forEach((q,i)=>{
-    const b = el('button','p-2 rounded bg-gray-100 text-sm', String(i+1));
-    b.addEventListener('click', ()=> { loadQuestion(i); document.getElementById('sidebarNav').classList.remove('active'); });
-    grid.appendChild(b);
+  const grid = $('#questionGrid');
+  grid.innerHTML = '';
+  
+  App.questions.forEach((question, index) => {
+    const button = document.createElement('button');
+    button.className = 'p-2 rounded text-sm transition-colors';
+    button.textContent = String(index + 1);
+    button.addEventListener('click', () => {
+      loadQuestion(index);
+      $('#sidebarNav').classList.remove('active');
+    });
+    grid.appendChild(button);
   });
+  
   refreshNavigator();
 }
+
 function refreshNavigator(){
-  const nodes = $('#questionGrid').children;
-
-  [...nodes].forEach((n,i)=>{
-    n.className = "p-2 rounded text-sm"; // reset
-
-    if(i === App.currentIndex){
-      n.classList.add("ring-2", "ring-blue-500");
+  const buttons = $('#questionGrid').children;
+  
+  Array.from(buttons).forEach((button, index) => {
+    // Reset classes
+    button.className = 'p-2 rounded text-sm transition-colors';
+    
+    if(index === App.currentIndex){
+      button.classList.add('ring-2', 'ring-blue-500', 'font-bold');
     }
-
-    if(App.userAnswers[i] === undefined){
-      // unanswered
-      n.classList.add("bg-gray-100");
+    
+    if(App.userAnswers[index] === undefined){
+      // Unanswered
+      button.classList.add('bg-gray-100', 'hover:bg-gray-200');
     } else {
-      const q = App.questions[i];
-      const chosen = App.userAnswers[i];
-      if(chosen === q.ans){
-        n.classList.add("bg-green-200"); // correct
+      const question = App.questions[index];
+      const chosen = App.userAnswers[index];
+      
+      if(chosen === question.ans){
+        button.classList.add('bg-green-200', 'hover:bg-green-300'); // Correct
       } else {
-        n.classList.add("bg-red-200"); // wrong
+        button.classList.add('bg-red-200', 'hover:bg-red-300'); // Wrong
+      }
+    }
+    
+    // Mark skipped questions
+    if(App.skipped.has(index)){
+      button.classList.add('opacity-50');
+    }
+  });
+}
+
+function loadQuestion(index){
+  if(index < 0 || index >= App.questions.length) return;
+  
+  App.currentIndex = index;
+  const question = App.questions[index];
+  
+  // Update UI elements
+  $('#qTitle').textContent = `Question ${index + 1}`;
+  $('#qIndex').textContent = `${index + 1} of ${App.questions.length}`;
+  $('#qText').textContent = question.question;
+  
+  // Clear and rebuild options
+  const optionsContainer = $('#options');
+  optionsContainer.innerHTML = '';
+  
+  question.options.forEach((option, optionIndex) => {
+    const optionElement = document.createElement('div');
+    optionElement.className = 'p-3 border rounded cursor-pointer bg-white hover:bg-gray-50 transition-colors';
+    optionElement.innerHTML = `<strong class="mr-2">${String.fromCharCode(65 + optionIndex)}.</strong> ${option}`;
+    
+    optionElement.addEventListener('click', () => selectAnswer(optionIndex));
+    optionsContainer.appendChild(optionElement);
+  });
+  
+  // Hide hint and reset state
+  $('#hint').classList.add('hidden');
+  
+  // If already answered, show the answer state
+  if(App.userAnswers[index] !== undefined){
+    showAnswerState(App.userAnswers[index]);
+  }
+  
+  // Update navigator and powerups
+  refreshNavigator();
+  updatePowerupUI();
+  
+  // Reset question timer if in question mode
+  if(App.timers.mode === 'question'){
+    resetQuestionTimer();
+  }
+}
+
+function selectAnswer(choice){
+  const currentIndex = App.currentIndex;
+  
+  // Don't allow re-answering
+  if(App.userAnswers[currentIndex] !== undefined) return;
+  
+  App.userAnswers[currentIndex] = choice;
+  const question = App.questions[currentIndex];
+  const isCorrect = (choice === question.ans);
+  
+  // Update stats
+  if(isCorrect){
+    App.correctCount++;
+    App.streak++;
+    App.score += 100 + Math.max(0, App.streak - 1) * 10;
+    App.coins += 10;
+    playSound('#correctSound');
+    toast('Correct! +10 coins');
+  } else {
+    App.streak = 0;
+    playSound('#incorrectSound');
+    toast('Incorrect');
+  }
+  
+  // Show answer feedback
+  showAnswerState(choice);
+  refreshNavigator();
+  updatePowerupUI();
+  
+  // Auto-advance after short delay if not last question
+  if(currentIndex < App.questions.length - 1){
+    setTimeout(() => {
+      loadQuestion(currentIndex + 1);
+    }, 1500);
+  }
+}
+
+function showAnswerState(chosen){
+  const question = App.questions[App.currentIndex];
+  const options = Array.from($('#options').children);
+  
+  options.forEach((option, index) => {
+    option.classList.remove('option-correct', 'option-wrong', 'fade');
+    
+    if(index === question.ans){
+      option.classList.add('option-correct');
+    }
+    
+    if(index === chosen && chosen !== question.ans){
+      option.classList.add('option-wrong');
+    }
+    
+    if(index !== question.ans && index !== chosen){
+      option.classList.add('fade');
+    }
+    
+    // Disable clicks after answering
+    option.style.pointerEvents = 'none';
+  });
+}
+
+/* ---------------------------
+   Navigation Buttons
+--------------------------- */
+$('#nextBtn').addEventListener('click', () => {
+  const nextIndex = Math.min(App.currentIndex + 1, App.questions.length - 1);
+  loadQuestion(nextIndex);
+});
+
+$('#prevBtn').addEventListener('click', () => {
+  const prevIndex = Math.max(App.currentIndex - 1, 0);
+  loadQuestion(prevIndex);
+});
+
+$('#submitBtn').addEventListener('click', () => {
+  const unanswered = App.questions.length - Object.keys(App.userAnswers).length;
+  
+  if(unanswered > 0){
+    if(!confirm(`You have ${unanswered} unanswered questions. Submit anyway?`)){
+      return;
+    }
+  }
+  
+  submitQuiz();
+});
+
+function submitQuiz(){
+  stopAllTimers();
+  
+  const total = App.questions.length;
+  const correct = App.correctCount;
+  const percentage = Math.round((correct / total) * 100);
+  
+  // Update results summary
+  $('#resultsSummary').innerHTML = `
+    <div class="p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border">
+      <div class="text-center">
+        <div class="text-3xl font-bold text-blue-600">${App.score}</div>
+        <div class="text-sm text-gray-600">Total Score</div>
+      </div>
+      <div class="grid grid-cols-3 gap-4 mt-4 text-center">
+        <div>
+          <div class="text-xl font-semibold">${correct}/${total}</div>
+          <div class="text-xs text-gray-600">Correct</div>
+        </div>
+        <div>
+          <div class="text-xl font-semibold">${percentage}%</div>
+          <div class="text-xs text-gray-600">Percentage</div>
+        </div>
+        <div>
+          <div class="text-xl font-semibold">${App.coins}</div>
+          <div class="text-xs text-gray-600">Coins Earned</div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Build detailed results list
+  const resultsList = $('#resultsList');
+  resultsList.innerHTML = '';
+  
+  App.questions.forEach((question, index) => {
+    const chosen = App.userAnswers[index];
+    const isCorrect = chosen === question.ans;
+    
+    const item = document.createElement('div');
+    item.className = `p-4 rounded-lg border ${isCorrect ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`;
+    
+    let optionsHtml = '';
+    question.options.forEach((option, optIndex) => {
+      let marker = '';
+      if(optIndex === question.ans) marker = '✅ Correct';
+      if(optIndex === chosen && !isCorrect) marker = '❌ Your choice';
+      
+      optionsHtml += `
+        <div class="p-2 ${optIndex === question.ans ? 'bg-green-100' : optIndex === chosen && !isCorrect ? 'bg-red-100' : 'bg-gray-100'} rounded mb-1">
+          <span class="font-medium">${String.fromCharCode(65 + optIndex)}.</span> ${option}
+          ${marker ? `<span class="ml-2 text-sm font-semibold">${marker}</span>` : ''}
+        </div>
+      `;
+    });
+    
+    item.innerHTML = `
+      <div class="flex justify-between items-start">
+        <div class="font-semibold">${index + 1}. ${question.question}</div>
+        <span class="text-sm font-semibold ${isCorrect ? 'text-green-600' : 'text-red-600'}">
+          ${isCorrect ? 'CORRECT' : 'INCORRECT'}
+        </span>
+      </div>
+      <div class="mt-3">${optionsHtml}</div>
+      ${question.hint ? `<div class="mt-2 text-sm text-gray-600 p-2 bg-yellow-50 rounded">💡 ${question.hint}</div>` : ''}
+    `;
+    
+    resultsList.appendChild(item);
+  });
+  
+  // Show results card
+  $('#quizCard').classList.add('hidden');
+  $('#resultsCard').classList.remove('hidden');
+  
+  // Celebration for good scores
+  if(percentage >= 80){
+    playSound('#powerSound');
+    confettiBurst();
+    toast('Excellent work! 🎉');
+  } else if(percentage >= 60){
+    toast('Good job! Keep practicing!');
+  }
+}
+
+/* ---------------------------
+   Power-ups
+--------------------------- */
+$('#pu5050').addEventListener('click', () => {
+  if(App.powerups['5050'] <= 0){
+    toast('No 50:50 power-ups remaining');
+    return;
+  }
+  
+  const question = App.questions[App.currentIndex];
+  const options = Array.from($('#options').children);
+  const wrongOptions = options.map((_, index) => index).filter(index => index !== question.ans);
+  
+  // Shuffle and take 2 wrong options
+  shuffle(wrongOptions).slice(0, 2).forEach(index => {
+    options[index].classList.add('fade');
+    options[index].style.pointerEvents = 'none';
+  });
+  
+  App.powerups['5050']--;
+  updatePowerupUI();
+  playSound('#powerSound');
+  toast('Two wrong options removed');
+});
+
+$('#puHint').addEventListener('click', () => {
+  if(App.powerups.hint <= 0){
+    toast('No hints remaining');
+    return;
+  }
+  
+  const question = App.questions[App.currentIndex];
+  $('#hint').textContent = '💡 ' + (question.hint || 'Look for key terms in the context');
+  $('#hint').classList.remove('hidden');
+  
+  App.powerups.hint--;
+  updatePowerupUI();
+  playSound('#powerSound');
+});
+
+$('#puSkip').addEventListener('click', () => {
+  if(App.powerups.skip <= 0){
+    toast('No skips remaining');
+    return;
+  }
+  
+  App.skipped.add(App.currentIndex);
+  App.powerups.skip--;
+  
+  // Move to next unanswered question
+  let nextIndex = App.currentIndex + 1;
+  while(nextIndex < App.questions.length && App.userAnswers[nextIndex] !== undefined){
+    nextIndex++;
+  }
+  
+  if(nextIndex >= App.questions.length){
+    nextIndex = 0;
+    while(nextIndex < App.currentIndex && App.userAnswers[nextIndex] !== undefined){
+      nextIndex++;
+    }
+  }
+  
+  updatePowerupUI();
+  loadQuestion(nextIndex);
+  playSound('#powerSound');
+  toast('Question skipped');
+});
+
+function updatePowerupUI(){
+  $('#count5050').textContent = App.powerups['5050'];
+  $('#countHint').textContent = App.powerups.hint;
+  $('#countSkip').textContent = App.powerups.skip;
+  $('#coins').textContent = App.coins;
+  $('#coinsTop').textContent = App.coins;
+  $('#score').textContent = App.score;
+  $('#correctCount').textContent = App.correctCount;
+  $('#streak').textContent = App.streak;
+  $('#currentQ').textContent = App.currentIndex + 1;
+}
+
+/* ---------------------------
+   Shop System
+--------------------------- */
+$('#coinsContainer').addEventListener('click', () => {
+  $('#shopModal').classList.remove('hidden');
+});
+
+$('#closeShop').addEventListener('click', () => {
+  $('#shopModal').classList.add('hidden');
+});
+
+document.querySelectorAll('.shopBuy').forEach(button => {
+  button.addEventListener('click', function() {
+    const price = parseInt(this.dataset.price);
+    const power = this.dataset.power;
+    
+    if(App.coins < price){
+      toast('Not enough coins!');
+      return;
+    }
+    
+    App.coins -= price;
+    App.powerups[power] = (App.powerups[power] || 0) + 1;
+    
+    updatePowerupUI();
+    $('#shopModal').classList.add('hidden');
+    playSound('#coinSound');
+    toast(`Purchased ${power} power-up!`);
+  });
+});
+
+/* ---------------------------
+   Timer System
+--------------------------- */
+$('#applyTimers').addEventListener('click', () => {
+  App.timers.mode = $('#timerMode').value;
+  App.timers.question = Math.max(5, parseInt($('#questionTimerInput').value) || 30);
+  App.timers.quiz = Math.max(10, parseInt($('#quizTimerInput').value) || 300);
+  
+  startTimers();
+  toast('Timer settings updated');
+});
+
+function startTimers(){
+  stopAllTimers();
+  
+  if(App.timers.mode === 'none'){
+    $('#timerVal').textContent = '—';
+    return;
+  }
+  
+  if(App.timers.mode === 'quiz'){
+    App.timers.quizRemaining = App.timers.quiz;
+    $('#timerVal').textContent = formatTime(App.timers.quizRemaining);
+    
+    App.timers.interval = setInterval(() => {
+      App.timers.quizRemaining--;
+      $('#timerVal').textContent = formatTime(App.timers.quizRemaining);
+      
+      if(App.timers.quizRemaining <= 0){
+        clearInterval(App.timers.interval);
+        submitQuiz();
+      }
+    }, 1000);
+  } else {
+    resetQuestionTimer();
+  }
+}
+
+function resetQuestionTimer(){
+  if(App.timers.mode !== 'question') return;
+  
+  App.timers.questionRemaining = App.timers.question;
+  $('#timerVal').textContent = formatTime(App.timers.questionRemaining);
+  
+  if(App.timers.interval) clearInterval(App.timers.interval);
+  
+  App.timers.interval = setInterval(() => {
+    App.timers.questionRemaining--;
+    $('#timerVal').textContent = formatTime(App.timers.questionRemaining);
+    
+    if(App.timers.questionRemaining <= 0){
+      clearInterval(App.timers.interval);
+      
+      // Auto-submit null answer for this question
+      App.userAnswers[App.currentIndex] = null;
+      
+      // Move to next unanswered question
+      const nextIndex = findNextUnanswered();
+      if(nextIndex !== -1){
+        loadQuestion(nextIndex);
+      } else {
+        submitQuiz();
+      }
+    }
+  }, 1000);
+}
+
+function stopAllTimers(){
+  if(App.timers.interval){
+    clearInterval(App.timers.interval);
+    App.timers.interval = null;
+  }
+  $('#timerVal').textContent = '—';
+}
+
+function formatTime(seconds){
+  if(seconds == null) return '—';
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${minutes}:${secs.toString().padStart(2, '0')}`;
+}
+
+function findNextUnanswered(){
+  for(let i = 0; i < App.questions.length; i++){
+    if(App.userAnswers[i] === undefined && !App.skipped.has(i)){
+      return i;
+    }
+  }
+  return -1;
+}
+
+/* ---------------------------
+   Saved Quizzes System - FIXED
+--------------------------- */
+function loadSavedQuizzes(){
+  const savedQuizzes = JSON.parse(localStorage.getItem('quizpro_saved') || '[]');
+  const quizList = $('#quizList');
+  
+  quizList.innerHTML = '';
+  
+  if(savedQuizzes.length === 0){
+    quizList.innerHTML = `
+      <div class="text-center p-6 text-gray-500">
+        <i class="fa-solid fa-box-open text-3xl mb-2"></i>
+        <p>No saved quizzes yet</p>
+      </div>
+    `;
+    return;
+  }
+  
+  savedQuizzes.forEach((quiz, index) => {
+    const quizElement = document.createElement('div');
+    quizElement.className = 'saved-quiz-item p-4 border rounded-lg bg-white hover:shadow-md transition-all';
+    
+    const date = new Date(quiz.created);
+    const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    
+    quizElement.innerHTML = `
+      <div class="flex justify-between items-start">
+        <div class="flex-1">
+          <div class="font-semibold text-lg">${quiz.title || 'Untitled Quiz'}</div>
+          <div class="flex items-center gap-2 mt-1 text-sm text-gray-600">
+            <span class="px-2 py-1 bg-blue-100 rounded text-blue-700">${quiz.category || 'General'}</span>
+            <span>•</span>
+            <span>${quiz.questions ? quiz.questions.length : 0} questions</span>
+            <span>•</span>
+            <span>${formattedDate}</span>
+          </div>
+        </div>
+        <div class="flex gap-2 ml-4">
+          <button class="loadSaved px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors" 
+                  data-index="${index}">
+            <i class="fa-solid fa-play mr-1"></i> Load
+          </button>
+          <button class="deleteSaved px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors" 
+                  data-index="${index}">
+            <i class="fa-solid fa-trash mr-1"></i> Delete
+          </button>
+        </div>
+      </div>
+    `;
+    
+    quizList.appendChild(quizElement);
+  });
+  
+  // Re-attach event listeners using event delegation
+  quizList.addEventListener('click', function(event){
+    const target = event.target.closest('button');
+    if(!target) return;
+    
+    const savedQuizzes = JSON.parse(localStorage.getItem('quizpro_saved') || '[]');
+    const index = parseInt(target.dataset.index);
+    
+    if(target.classList.contains('loadSaved') && !isNaN(index)){
+      const quiz = savedQuizzes[index];
+      if(quiz && quiz.questions){
+        startQuizWith(quiz.questions);
+        $('#savedCard').classList.add('hidden');
+        toast(`Loaded "${quiz.title}"`);
+      }
+    }
+    
+    if(target.classList.contains('deleteSaved') && !isNaN(index)){
+      if(confirm('Are you sure you want to delete this saved quiz?')){
+        savedQuizzes.splice(index, 1);
+        localStorage.setItem('quizpro_saved', JSON.stringify(savedQuizzes));
+        loadSavedQuizzes();
+        toast('Quiz deleted');
       }
     }
   });
 }
 
-/* Load question */
-function loadQuestion(i){
-  if(i<0||i>=App.questions.length) return;
-  App.currentIndex = i;
-  const q = App.questions[i];
-  $('#qTitle').textContent = `Question ${i+1}`;
-  $('#qIndex').textContent = `${i+1} / ${App.questions.length}`;
-  $('#qText').textContent = q.question;
-  const optBox = $('#options'); optBox.innerHTML = '';
-  q.options.forEach((opt, idx)=>{
-    const d = el('div','p-3 border rounded cursor-pointer bg-white', '');
-    d.innerHTML = `<strong class="mr-2">${String.fromCharCode(65+idx)}.</strong> ${opt}`;
-    d.addEventListener('click', ()=> selectAnswer(idx));
-    optBox.appendChild(d);
-  });
-  $('#hint').classList.add('hidden');
-  if(App.userAnswers[i] !== undefined) showAnswerState(App.userAnswers[i]);
-  refreshNavigator();
-  updatePowerupUI();
-  resetQuestionTimer();
-}
-
-/* Select answer */
-function selectAnswer(choice){
-  const i = App.currentIndex; if(App.userAnswers[i] !== undefined) return;
-  App.userAnswers[i] = choice;
-  const q = App.questions[i];
-  const correct = (choice === q.ans);
-  if(correct){
-    App.correctCount++; App.streak++; App.score += 100 + Math.max(0, App.streak-1) * 10; App.coins += 10; playSound('#correctSound'); toast('Correct +10 coins');
-  } else { App.streak = 0; playSound('#incorrectSound'); toast('Incorrect'); }
-  showAnswerState(choice);
-  refreshNavigator();
-  updatePowerupUI();
-}
-
-/* show answer state */
-function showAnswerState(chosen){
-  const q = App.questions[App.currentIndex];
-  const opts = Array.from($('#options').children);
-  opts.forEach((o, idx)=>{
-    o.classList.remove('option-correct','option-wrong','fade');
-    if(idx === q.ans) o.classList.add('option-correct');
-    if(idx === chosen && chosen !== q.ans) o.classList.add('option-wrong');
-    if(idx !== q.ans && idx !== chosen) o.classList.add('fade');
-  });
-}
-
-/* next/prev/submit */
-$('#nextBtn').addEventListener('click', ()=> loadQuestion(Math.min(App.currentIndex+1, App.questions.length-1)));
-$('#prevBtn').addEventListener('click', ()=> loadQuestion(Math.max(App.currentIndex-1, 0)));
-$('#submitBtn').addEventListener('click', ()=> {
-  if(Object.keys(App.userAnswers).length < App.questions.length && !confirm('Some unanswered. Submit anyway?')) return;
-  submitQuiz();
-});
-
-/* submit quiz */
-function submitQuiz(){
-  stopAllTimers();
-  const total = App.questions.length;
-  const correct = App.correctCount;
-  const percent = Math.round((correct/total)*100);
-  $('#resultsSummary').innerHTML = `<div class="p-3 bg-blue-50 rounded"><strong>Score:</strong> ${App.score} • <strong>Correct:</strong> ${correct}/${total} • <strong>${percent}%</strong></div>`;
-  const list = $('#resultsList'); list.innerHTML = '';
-  App.questions.forEach((q,i)=>{
-    const chosen = App.userAnswers[i];
-    const isCorrect = chosen === q.ans;
-    const item = el('div','p-3 rounded', '');
-    item.classList.add(isCorrect ? 'bg-green-50' : 'bg-red-50');
-    item.innerHTML = `<div class="font-semibold">${i+1}. ${q.question}</div>
-      <div class="text-sm text-gray-700 mt-2">${q.options.map((op,idx)=>`<div>${String.fromCharCode(65+idx)}. ${op} ${idx===q.ans?'✅':''} ${idx===chosen && !isCorrect?'❌':''}</div>`).join('')}</div>
-      ${q.hint ? `<div class="mt-2 text-xs text-gray-600 p-2 bg-gray-100 rounded">${q.hint}</div>` : ''}`;
-    list.appendChild(item);
-  });
-  $('#quizCard').classList.add('hidden');
-  $('#resultsCard').classList.remove('hidden');
-  if(percent >= 80){ playSound('#powerSound'); confettiBurst(); toast('Great job!'); }
-}
-
-/* powerups */
-$('#pu5050').addEventListener('click', ()=>{
-  if(App.powerups['5050'] <= 0){ toast('No 50:50 left'); return; }
-  const q = App.questions[App.currentIndex];
-  const opts = Array.from($('#options').children);
-  const wrongs = opts.map((o,i)=>i).filter(i=> i !== q.ans);
-  shuffle(wrongs).slice(0,2).forEach(i=>{ opts[i].classList.add('fade'); opts[i].onclick = null; });
-  App.powerups['5050']--; updatePowerupUI(); playSound('#powerSound');
-});
-$('#puHint').addEventListener('click', ()=>{
-  if(App.powerups.hint <= 0){ toast('No hints left'); return; }
-  $('#hint').textContent = '💡 ' + (App.questions[App.currentIndex].hint || 'Review the context');
-  $('#hint').classList.remove('hidden'); App.powerups.hint--; updatePowerupUI(); playSound('#powerSound');
-});
-$('#puSkip').addEventListener('click', ()=>{
-  if(App.powerups.skip <= 0){ toast('No skips left'); return; }
-  App.skipped.add(App.currentIndex); App.powerups.skip--; updatePowerupUI(); loadQuestion(Math.min(App.currentIndex+1, App.questions.length-1));
-});
-function updatePowerupUI(){ $('#count5050').textContent = App.powerups['5050']; $('#countHint').textContent = App.powerups['hint']; $('#countSkip').textContent = App.powerups['skip']; $('#coins').textContent = App.coins; $('#coinsTop').textContent = App.coins; $('#score').textContent = App.score; $('#correctCount').textContent = App.correctCount; $('#streak').textContent = App.streak; $('#currentQ').textContent = App.currentIndex+1 || '—'; }
-
-/* shop */
-$('#coinsTop').addEventListener('click', ()=> $('#shopModal').classList.remove('hidden'));
-$('#closeShop').addEventListener('click', ()=> $('#shopModal').classList.add('hidden'));
-document.querySelectorAll('.shopBuy').forEach(b=>{
-  b.addEventListener('click', ()=>{
-    const price = parseInt(b.dataset.price); const power = b.dataset.power;
-    if(App.coins < price){ toast('Not enough coins'); return; }
-    App.coins -= price; App.powerups[power] = (App.powerups[power]||0) + 1; updatePowerupUI(); $('#shopModal').classList.add('hidden'); playSound('#coinSound'); toast('Bought');
-  });
-});
-
-/* timers */
-$('#applyTimers').addEventListener('click', ()=>{
-  App.timers.mode = $('#timerMode').value;
-  App.timers.question = Math.max(5, parseInt($('#questionTimerInput') ? $('#questionTimerInput').value : 30) || 30);
-  App.timers.quiz = Math.max(10, parseInt($('#quizTimerInput') ? $('#quizTimerInput').value : 300) || 300);
-  startTimers(); toast('Timers updated');
-});
-function startTimers(){
-  stopAllTimers();
-  if(App.timers.mode === 'none'){ $('#timerVal').textContent = '—'; return; }
-  if(App.timers.mode === 'quiz'){
-    App.timers.quizRemaining = App.timers.quiz;
-    $('#timerVal').textContent = formatTime(App.timers.quizRemaining);
-    App.timers.interval = setInterval(()=>{
-      App.timers.quizRemaining--; $('#timerVal').textContent = formatTime(App.timers.quizRemaining);
-      if(App.timers.quizRemaining <= 0){ clearInterval(App.timers.interval); submitQuiz(); }
-    },1000);
-  } else {
-    resetQuestionTimer();
-  }
-}
-function resetQuestionTimer(){
-  if(App.timers.mode !== 'question') return;
-  App.timers.questionRemaining = App.timers.question;
-  $('#timerVal').textContent = formatTime(App.timers.questionRemaining);
-  if(App.timers.interval) clearInterval(App.timers.interval);
-  App.timers.interval = setInterval(()=>{
-    App.timers.questionRemaining--; $('#timerVal').textContent = formatTime(App.timers.questionRemaining);
-    if(App.timers.questionRemaining <= 0){ clearInterval(App.timers.interval); App.userAnswers[App.currentIndex] = null; loadQuestion(nextUnansweredOrNext()); }
-  },1000);
-}
-function stopAllTimers(){ if(App.timers.interval) clearInterval(App.timers.interval); App.timers.interval = null; $('#timerVal').textContent = '—'; }
-function formatTime(sec){ if(sec==null) return '—'; const m=Math.floor(sec/60); const s=sec%60; return `${m}:${s.toString().padStart(2,'0')}`; }
-function nextUnansweredOrNext(){ for(let i=0;i<App.questions.length;i++) if(App.userAnswers[i]===undefined && !App.skipped.has(i)) return i; return Math.min(App.currentIndex+1, App.questions.length-1); }
-
-/* confetti */
-function confettiBurst(){
-  const c = document.createElement('div'); c.style.position='fixed'; c.style.inset='0'; c.style.pointerEvents='none'; c.style.zIndex='9999'; document.body.appendChild(c);
-  const colors = ['#4361ee','#3a0ca3','#4cc9f0','#f72585','#fca311'];
-  for(let i=0;i<40;i++){
-    const el = document.createElement('div'); el.style.position='absolute'; el.style.left=(Math.random()*100)+'%'; el.style.top='-10%'; el.style.width='8px'; el.style.height='12px'; el.style.background=colors[Math.floor(Math.random()*colors.length)]; el.style.opacity='0.95';
-    el.style.transition='transform 2.6s linear, top 2.6s linear, opacity 2.6s linear'; c.appendChild(el);
-    setTimeout(()=>{ el.style.top=(100+Math.random()*60)+'vh'; el.style.transform=`rotate(${Math.random()*1080}deg)`; el.style.opacity='0'; }, 30 + i*10);
-    setTimeout(()=> el.remove(), 3300 + Math.random()*400);
-  }
-  setTimeout(()=> c.remove(), 3600);
-}
-
-/* Save/load/export */
-$('#saveQuizBtn').addEventListener('click', ()=>{
-  if(!App.questions || App.questions.length===0) return toast('No quiz to save');
-  $('#quizTitle').value = App.pdfText ? 'Quiz from PDF' : 'My Quiz';
-  $('#saveModal').classList.remove('hidden');
-});
-$('#closeSave').addEventListener('click', ()=> $('#saveModal').classList.add('hidden'));
-$('#cancelSave').addEventListener('click', ()=> $('#saveModal').classList.add('hidden'));
-$('#saveToLocal').addEventListener('click', ()=>{
-  const title = $('#quizTitle').value.trim() || 'Untitled';
-  const cat = $('#quizCategory').value || 'General';
-  const data = { id: 'q_' + Date.now(), title, cat, questions: App.questions, created: new Date().toISOString() };
-  const list = JSON.parse(localStorage.getItem('quizpro_saved') || '[]'); list.push(data); localStorage.setItem('quizpro_saved', JSON.stringify(list));
-  $('#saveModal').classList.add('hidden'); toast('Saved'); loadSavedQuizzes();
-});
-
-function loadSavedQuizzes(){
-  const list = JSON.parse(localStorage.getItem('quizpro_saved') || '[]');
-  const box = $('#quizList');
-  box.innerHTML = '';
-
-  if(list.length === 0){
-    box.innerHTML = '<div class="text-gray-500">No saved quizzes</div>';
+$('#saveQuizBtn').addEventListener('click', () => {
+  if(!App.questions || App.questions.length === 0){
+    toast('No quiz to save');
     return;
   }
+  
+  $('#quizTitle').value = App.pdfText ? `Quiz from ${$('#fileName').textContent || 'PDF'}` : 'My Quiz';
+  $('#saveModal').classList.remove('hidden');
+});
 
-  list.forEach(item=>{
-    const row = document.createElement('div');
-    row.className = "p-3 border rounded bg-gray-50";
+$('#closeSave').addEventListener('click', () => {
+  $('#saveModal').classList.add('hidden');
+});
 
-    row.innerHTML = `
-      <div class="flex justify-between items-center">
-        <div>
-          <div class="font-semibold">${item.title}</div>
-          <div class="text-xs text-gray-500">${new Date(item.created).toLocaleString()}</div>
-        </div>
-        <div class="flex gap-2">
-          <button class="loadSaved px-3 py-1 bg-blue-100 rounded" data-id="${item.id}">Load</button>
-          <button class="deleteSaved px-3 py-1 bg-red-100 rounded" data-id="${item.id}">Delete</button>
-        </div>
+$('#cancelSave').addEventListener('click', () => {
+  $('#saveModal').classList.add('hidden');
+});
+
+$('#saveToLocal').addEventListener('click', () => {
+  const title = $('#quizTitle').value.trim() || 'Untitled Quiz';
+  const category = $('#quizCategory').value || 'General';
+  
+  const quizData = {
+    id: 'quiz_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+    title: title,
+    category: category,
+    questions: App.questions,
+    created: new Date().toISOString(),
+    pdfName: $('#fileName').textContent || null
+  };
+  
+  let savedQuizzes = JSON.parse(localStorage.getItem('quizpro_saved') || '[]');
+  savedQuizzes.push(quizData);
+  localStorage.setItem('quizpro_saved', JSON.stringify(savedQuizzes));
+  
+  $('#saveModal').classList.add('hidden');
+  toast('Quiz saved successfully!');
+  loadSavedQuizzes();
+});
+
+$('#clearStorageBtn').addEventListener('click', () => {
+  if(confirm('Are you sure you want to clear all saved quizzes? This cannot be undone.')){
+    localStorage.removeItem('quizpro_saved');
+    loadSavedQuizzes();
+    toast('All saved quizzes cleared');
+  }
+});
+
+/* ---------------------------
+   Export Functions
+--------------------------- */
+$('#exportAllBtn').addEventListener('click', () => {
+  if(App.seeds.length === 0){
+    toast('No seeds to export');
+    return;
+  }
+  
+  const exportData = {
+    seeds: App.seeds,
+    exportedAt: new Date().toISOString(),
+    source: App.pdfText ? 'PDF extraction' : 'Manual generation',
+    count: App.seeds.length
+  };
+  
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `quizpro-seeds-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  
+  toast('Seeds exported successfully');
+});
+
+$('#exportResults').addEventListener('click', () => {
+  if(!App.questions || App.questions.length === 0){
+    toast('No results to export');
+    return;
+  }
+  
+  const exportData = {
+    score: App.score,
+    correctCount: App.correctCount,
+    totalQuestions: App.questions.length,
+    percentage: Math.round((App.correctCount / App.questions.length) * 100),
+    answers: App.userAnswers,
+    questions: App.questions.map((q, i) => ({
+      question: q.question,
+      correctAnswer: q.options[q.ans],
+      userAnswer: App.userAnswers[i] !== undefined ? q.options[App.userAnswers[i]] : 'Not answered',
+      isCorrect: App.userAnswers[i] === q.ans
+    })),
+    exportedAt: new Date().toISOString()
+  };
+  
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `quizpro-results-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  
+  toast('Results exported successfully');
+});
+
+/* ---------------------------
+   Study Preview - IMPROVED
+--------------------------- */
+$('#buildStudyBtn').addEventListener('click', () => {
+  if(!App.pdfText || App.pdfText.trim().length < 50){
+    toast('Upload a PDF with sufficient content first');
+    return;
+  }
+  
+  const terms = extractTermsAndDefinitions(App.pdfText);
+  const studyContent = $('#studyContent');
+  
+  studyContent.innerHTML = '';
+  
+  if(terms.length === 0){
+    studyContent.innerHTML = `
+      <div class="text-center p-6 text-gray-500">
+        <i class="fa-solid fa-book-open text-3xl mb-2"></i>
+        <p>No structured terms found in the document.</p>
+        <p class="text-sm mt-2">Try uploading a document with more definitions or structured content.</p>
       </div>
     `;
-
-    box.appendChild(row);
-  });
-
-  // FIXED event binding
-  box.querySelectorAll('.loadSaved').forEach(btn=>{
-    btn.onclick = ()=>{
-      const id = btn.dataset.id;
-      const saved = JSON.parse(localStorage.getItem('quizpro_saved') || '[]');
-      const quiz = saved.find(x=>x.id===id);
-      if(!quiz){ toast('Quiz not found'); return; }
-
-      startQuizWith(quiz.questions);
-      $('#savedCard').classList.add('hidden');
-    };
-  });
-
-  box.querySelectorAll('.deleteSaved').forEach(btn=>{
-    btn.onclick = ()=>{
-      const id = btn.dataset.id;
-      let saved = JSON.parse(localStorage.getItem('quizpro_saved') || '[]');
-      saved = saved.filter(x=>x.id!==id);
-      localStorage.setItem('quizpro_saved', JSON.stringify(saved));
-      toast('Deleted');
-      loadSavedQuizzes();
-    };
-  });
-}
-
-/* export */
-$('#exportAllBtn').addEventListener('click', ()=>{
-  const blob = new Blob([JSON.stringify({ seeds: App.seeds, exportedAt: new Date().toISOString() }, null, 2)], {type:'application/json'});
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'quiz-seeds.json'; a.click(); URL.revokeObjectURL(a.href); toast('Exported seeds');
-});
-$('#exportResults').addEventListener('click', ()=>{
-  const blob = new Blob([JSON.stringify({ score: App.score, correct: App.correctCount, answers: App.userAnswers, exportedAt: new Date().toISOString() }, null, 2)], {type:'application/json'});
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'quiz-results.json'; a.click(); URL.revokeObjectURL(a.href); toast('Exported results');
-});
-
-/* retry */
-$('#retryAll').addEventListener('click', ()=> { if(!App.questions) return; startQuizWith(App.questions.map(q=>({...q}))); });
-$('#retryWrong').addEventListener('click', ()=> {
-  const wrongs = App.questions.filter((q,i)=> App.userAnswers[i] !== q.ans);
-  if(!wrongs.length) return toast('No wrong items'); startQuizWith(wrongs);
-});
-
-/* Study preview: term -> description extraction */
-$('#buildStudyBtn').addEventListener('click', ()=> {
-  if(!App.pdfText){ toast('Upload a PDF first'); return; }
-
-  const text = App.pdfText.replace(/\s+/g,' ');
-  const sentences = text.split(/(?<=[.?!])\s+/);
-
-  const terms = [];
-
-  for(const s of sentences){
-    // Pattern 1: “Term is definition”
-    let m = s.match(/^([A-Z][A-Za-z0-9 \-]{2,50})\s+(is|are|refers to|means|defined as|consists of)\s+(.*)/i);
-    if(m) terms.push({term:m[1], def:m[3], context:s});
-    // Pattern 2: “Term: Definition”
-    m = s.match(/^([A-Za-z0-9 \-]{2,80}):\s+(.*)/);
-    if(m) terms.push({term:m[1], def:m[2], context:s});
-    if(terms.length>=60) break;
-  }
-
-  // fallback
-  if(terms.length===0){
-    terms.push({term:"General Summary", def:text.slice(0,500)+"...", context:"Full PDF"});
-  }
-
-  const box = $('#studyContent');
-  box.innerHTML = '';
-  for(const t of terms){
-    const row = document.createElement('div');
-    row.className = "p-3 border rounded";
-    row.innerHTML = `
-      <div class="font-semibold">${t.term}</div>
-      <div class="text-sm text-gray-700 mt-1">${t.def}</div>
+  } else {
+    terms.forEach((term, index) => {
+      const termElement = document.createElement('div');
+      termElement.className = 'p-4 border rounded-lg bg-white hover:bg-gray-50 transition-colors';
+      
+      termElement.innerHTML = `
+        <div class="flex justify-between items-start">
+          <div class="flex-1">
+            <div class="font-bold text-lg text-blue-700">${index + 1}. ${term.term}</div>
+            <div class="mt-2 text-gray-700">${term.def}</div>
+            ${term.context && term.context.length > 50 ? `
+              <div class="mt-2 text-sm text-gray-500 p-2 bg-gray-50 rounded">
+                <i class="fa-solid fa-quote-left mr-1"></i>
+                ${term.context.length > 150 ? term.context.substring(0, 150) + '...' : term.context}
+              </div>
+            ` : ''}
+          </div>
+          <div class="ml-4">
+            <button class="copyTerm px-2 py-1 text-xs bg-gray-100 rounded hover:bg-gray-200 transition-colors"
+                    data-term="${term.term}" data-def="${term.def}">
+              <i class="fa-solid fa-copy mr-1"></i> Copy
+            </button>
+          </div>
+        </div>
+      `;
+      
+      studyContent.appendChild(termElement);
+    });
+    
+    // Add copy functionality
+    studyContent.addEventListener('click', (event) => {
+      const target = event.target.closest('.copyTerm');
+      if(target){
+        const term = target.dataset.term;
+        const def = target.dataset.def;
+        const text = `${term}: ${def}`;
+        
+        navigator.clipboard.writeText(text).then(() => {
+          toast('Copied to clipboard!');
+        }).catch(() => {
+          // Fallback for older browsers
+          const textArea = document.createElement('textarea');
+          textArea.value = text;
+          document.body.appendChild(textArea);
+          textArea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textArea);
+          toast('Copied to clipboard!');
+        });
+      }
+    });
+    
+    // Add search functionality
+    const searchBar = document.createElement('div');
+    searchBar.className = 'mb-4';
+    searchBar.innerHTML = `
+      <div class="relative">
+        <input type="text" id="studySearch" placeholder="Search terms..." 
+               class="w-full p-3 border rounded-lg pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+      </div>
     `;
-    box.appendChild(row);
+    
+    studyContent.insertBefore(searchBar, studyContent.firstChild);
+    
+    // Add search functionality
+    $('#studySearch').addEventListener('input', function() {
+      const searchTerm = this.value.toLowerCase();
+      const termElements = studyContent.querySelectorAll('div.p-4');
+      
+      termElements.forEach(element => {
+        const text = element.textContent.toLowerCase();
+        if(text.includes(searchTerm) || searchTerm === ''){
+          element.style.display = 'block';
+        } else {
+          element.style.display = 'none';
+        }
+      });
+    });
   }
-
+  
   $('#studyModal').classList.remove('hidden');
 });
-$('#closeStudyModal').addEventListener('click', ()=> $('#studyModal').classList.add('hidden'));
 
-/* Navigator menu on small screens: view saved/results buttons */
-$('#viewSavedBtn').addEventListener('click', ()=> {
-  $('#savedCard').classList.remove('hidden'); $('#quizCard').classList.add('hidden'); $('#resultsCard').classList.add('hidden');
-  document.getElementById('sidebarNav').classList.remove('active');
+$('#closeStudyModal').addEventListener('click', () => {
+  $('#studyModal').classList.add('hidden');
+});
+
+/* ---------------------------
+   View Controls
+--------------------------- */
+$('#viewSavedBtn').addEventListener('click', () => {
+  $('#savedCard').classList.remove('hidden');
+  $('#quizCard').classList.add('hidden');
+  $('#resultsCard').classList.add('hidden');
+  $('#uploadCard').classList.remove('hidden');
+  $('#configureCard').classList.remove('hidden');
   loadSavedQuizzes();
 });
-$('#viewResultsBtn').addEventListener('click', ()=> {
-  $('#resultsCard').classList.remove('hidden'); $('#savedCard').classList.add('hidden'); $('#quizCard').classList.add('hidden');
-  document.getElementById('sidebarNav').classList.remove('active');
+
+$('#viewResultsBtn').addEventListener('click', () => {
+  if(Object.keys(App.userAnswers).length === 0){
+    toast('No quiz results to show');
+    return;
+  }
+  $('#resultsCard').classList.remove('hidden');
+  $('#savedCard').classList.add('hidden');
+  $('#quizCard').classList.add('hidden');
 });
 
-/* Fullscreen */
-$('#openFull').addEventListener('click', ()=> {
+/* ---------------------------
+   Retry Functions
+--------------------------- */
+$('#retryAll').addEventListener('click', () => {
+  if(!App.questions || App.questions.length === 0){
+    toast('No quiz to retry');
+    return;
+  }
+  startQuizWith(App.questions);
+});
+
+$('#retryWrong').addEventListener('click', () => {
+  const wrongQuestions = App.questions.filter((question, index) => {
+    return App.userAnswers[index] !== question.ans;
+  });
+  
+  if(wrongQuestions.length === 0){
+    toast('No wrong answers to retry!');
+    return;
+  }
+  
+  startQuizWith(wrongQuestions);
+  toast(`Retrying ${wrongQuestions.length} questions`);
+});
+
+/* ---------------------------
+   Fullscreen
+--------------------------- */
+$('#openFull').addEventListener('click', () => {
   try{
-    if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
-    else if(document.documentElement.webkitRequestFullscreen) document.documentElement.webkitRequestFullscreen();
-    toast('Opened fullscreen');
-  }catch(e){ toast('Fullscreen failed'); }
+    if(document.documentElement.requestFullscreen){
+      document.documentElement.requestFullscreen();
+    } else if(document.documentElement.webkitRequestFullscreen){
+      document.documentElement.webkitRequestFullscreen();
+    } else if(document.documentElement.msRequestFullscreen){
+      document.documentElement.msRequestFullscreen();
+    }
+    toast('Entered fullscreen mode');
+  } catch(error){
+    toast('Fullscreen not supported');
+  }
 });
 
-/* Initial load saved quizzes and defaults */
-function initEverything(){
-  loadSavedQuizzes();
-  updatePowerupUI();
-  rebuildNumDropdown(10);
-  // Apply a small tick to ensure dropdown bug fixed after first PDF load too
-  setTimeout(()=> { if($('#numQuestions').options.length === 0) rebuildNumDropdown(10); }, 200);
+// Exit fullscreen on Escape key
+document.addEventListener('fullscreenchange', () => {
+  if(!document.fullscreenElement){
+    toast('Exited fullscreen mode');
+  }
+});
+
+/* ---------------------------
+   Confetti Effect
+--------------------------- */
+function confettiBurst(){
+  const colors = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#EC4899'];
+  const container = document.createElement('div');
+  container.style.position = 'fixed';
+  container.style.top = '0';
+  container.style.left = '0';
+  container.style.width = '100%';
+  container.style.height = '100%';
+  container.style.pointerEvents = 'none';
+  container.style.zIndex = '9999';
+  
+  document.body.appendChild(container);
+  
+  for(let i = 0; i < 60; i++){
+    const confetti = document.createElement('div');
+    confetti.style.position = 'absolute';
+    confetti.style.width = '10px';
+    confetti.style.height = '10px';
+    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+    confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+    confetti.style.left = Math.random() * 100 + '%';
+    confetti.style.top = '-20px';
+    confetti.style.opacity = '0.9';
+    
+    container.appendChild(confetti);
+    
+    const animation = confetti.animate([
+      { transform: `translate(0, 0) rotate(0deg)`, opacity: 1 },
+      { transform: `translate(${Math.random() * 200 - 100}px, ${window.innerHeight + 100}px) rotate(${Math.random() * 720}deg)`, opacity: 0 }
+    ], {
+      duration: 2000 + Math.random() * 1000,
+      easing: 'cubic-bezier(0.1, 0.8, 0.9, 0.1)'
+    });
+    
+    animation.onfinish = () => {
+      confetti.remove();
+    };
+  }
+  
+  setTimeout(() => {
+    container.remove();
+  }, 3000);
 }
-initEverything();
 
-/* Fix: when user uploads PDF multiple times, dropdown updates correctly (handled by rebuildNumDropdown in buildSeedsFromText).
-   Additionally ensure seeds are rebuilt whenever pdfText changes. */
+/* ---------------------------
+   Initialize Application
+--------------------------- */
+function initializeApp(){
+  // Initialize dropdown
+  rebuildNumDropdown(10);
+  
+  // Load saved quizzes
+  loadSavedQuizzes();
+  
+  // Update UI
+  updatePowerupUI();
+  
+  // Show welcome message
+  setTimeout(() => {
+    toast('Welcome to QuizPro! Upload a PDF to get started.', 3000);
+  }, 1000);
+}
 
+// Start the application
+initializeApp();
 </script>
 </body>
 </html>
