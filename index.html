@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>QuizPro — PDF to Quiz</title>
+<title>QuizPro — PDF to Quiz (Fixed)</title>
 
 <!-- TailwindCSS -->
 <script src="https://cdn.tailwindcss.com"></script>
@@ -34,20 +34,10 @@
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
-</style>
 
-<!-- Force Browser (Block Messenger / FB / IG in-app) -->
-<script>
-(function(){
-  const ua = navigator.userAgent || "";
-  const inApp = /FBAN|FBAV|Instagram|Messenger/i.test(ua);
-  const params = new URLSearchParams(location.search);
-  if(inApp && !params.get("external")){
-    const newUrl = location.origin + location.pathname + "?external=1";
-    try { window.location.href = newUrl; return; } catch(e){}
-  }
-})();
-</script>
+/* for study search highlight */
+.highlight { background: #fff7cc; padding: 0 2px; border-radius: 2px; }
+</style>
 
 </head>
 
@@ -68,26 +58,6 @@
     </button>
   </div>
 </div>
-
-<script>
-(function(){
-  const ua = navigator.userAgent || "";
-  const inApp = /FBAN|FBAV|Instagram|Messenger/i.test(ua);
-  const params = new URLSearchParams(location.search);
-  if(inApp && params.get("external")){
-    // Still in in-app browser → block
-    document.getElementById("inAppBlock").classList.remove("hidden");
-    document.getElementById("openExternalBtn").onclick = ()=>{
-      try {
-        // Android Chrome
-        window.location.href = "intent://" + window.location.host + window.location.pathname + "#Intent;scheme=https;package=com.android.chrome;end";
-      } catch(err){
-        alert("Please open this page in Chrome using ••• menu → Open in browser.");
-      }
-    };
-  }
-})();
-</script>
 
 <!-- HEADER -->
 <header class="bg-white shadow sticky top-0 z-40">
@@ -321,7 +291,19 @@ document.getElementById("closeNav").onclick = ()=> {
   <div class="bg-white rounded-lg max-w-4xl w-full p-4 max-h-[80vh] overflow-auto">
     <div class="flex justify-between items-center">
       <h3 class="font-semibold">Study Preview — Terms & Definitions</h3>
-      <button id="closeStudyModal" class="text-gray-500 hover:text-gray-700 transition-colors">Close</button>
+      <div class="flex items-center gap-2">
+        <button id="exportStudyCSV" class="px-2 py-1 bg-gray-100 rounded hover:bg-gray-200 text-sm">Export CSV</button>
+        <button id="copyAllStudy" class="px-2 py-1 bg-gray-100 rounded hover:bg-gray-200 text-sm">Copy All</button>
+        <button id="closeStudyModal" class="text-gray-500 hover:text-gray-700 transition-colors">Close</button>
+      </div>
+    </div>
+    <div id="studyToolbar" class="mt-3 flex gap-2 items-center">
+      <input id="studySearch" placeholder="Search terms..." class="w-full p-2 border rounded" />
+      <select id="studySort" class="border rounded p-2 text-sm">
+        <option value="relevance">Sort: Relevance</option>
+        <option value="alphabet">Alphabetical</option>
+        <option value="length">Definition length</option>
+      </select>
     </div>
     <div id="studyContent" class="mt-3 space-y-4"></div>
   </div>
@@ -400,7 +382,8 @@ function toast(msg, ms=1600){
   const t = $('#toast'); 
   t.textContent = msg; 
   t.classList.remove('hidden');
-  setTimeout(()=> t.classList.add('hidden'), ms);
+  clearTimeout(t._timeout);
+  t._timeout = setTimeout(()=> t.classList.add('hidden'), ms);
 }
 
 function playSound(sel){ 
@@ -429,91 +412,86 @@ function escapeReg(s){
 }
 
 /* ---------------------------
-   Smart Study Preview Extraction
+   Smart Study Preview Extraction (improved)
 --------------------------- */
 function extractTermsAndDefinitions(text) {
   const terms = [];
-  const sentences = text.split(/(?<=[.!?])\s+/).filter(s => s.length > 20);
+  const paragraphs = text.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
+  const joined = text.replace(/\s+/g, ' ');
   
-  // Common patterns for definitions
+  // Simple frequency / importance score
+  const freq = {};
+  joined.split(/\W+/).forEach(w => {
+    const low = w.toLowerCase();
+    if(low.length > 3) freq[low] = (freq[low] || 0) + 1;
+  });
+
+  // Heuristic patterns for definitions
   const patterns = [
-    // "Term is definition"
-    /^([A-Z][A-Za-z0-9\s\-]{1,50}?)\s+(?:is|are|refers to|means|defined as|consists of|comprises|can be described as)\s+(.+?)(?:\s*[.!?]|$)/i,
-    // "Term: definition"
-    /^([A-Za-z0-9\s\-]{1,80}?):\s+(.+?)(?:\s*[.!?]|$)/,
-    // "Definition (Term)"
-    /^(.+?)\s*\(([A-Z][A-Za-z0-9\s\-]+)\)(?:\s*[.!?]|$)/,
-    // "Also known as" patterns
+    /^([A-Z][A-Za-z0-9\s\-\–]{1,80}?)\s+(?:is|are|refers to|means|defined as|consists of|comprises|can be described as)\s+(.+?)(?:[.!?]|$)/i,
+    /^([A-Za-z0-9\s\-\–]{1,80}?):\s+(.+?)(?:[.!?]|$)/,
+    /(?:^|\n)([A-Za-z0-9\-\s]{2,60})\s*-\s*(.+?)(?:\n|$)/,
     /(?:also known as|abbreviated as|commonly called|often referred to as)\s+([A-Z][A-Za-z0-9\s\-]+)/i
   ];
-  
-  // Also look for bullet points or numbered lists
-  const listItems = text.match(/(?:^|\n)(?:\d+\.|\*|\-)\s+([A-Za-z].+?)(?=\n|$)/g) || [];
-  
-  for(const item of listItems) {
-    const clean = item.replace(/^(?:\d+\.|\*|\-)\s+/, '');
-    if(clean.length > 30 && clean.length < 300) {
-      terms.push({
-        term: clean.substring(0, 60) + (clean.length > 60 ? '...' : ''),
-        def: 'List item from document',
-        context: clean
-      });
-    }
-  }
-  
-  // Process sentences with patterns
-  for(const sentence of sentences) {
-    for(const pattern of patterns) {
-      const match = sentence.match(pattern);
-      if(match) {
-        let term, def;
-        if(pattern.source.includes('\\(([A-Z]')) {
-          // For "Definition (Term)" pattern
-          def = match[1].trim();
-          term = match[2].trim();
-        } else {
-          term = match[1].trim();
-          def = match[2].trim();
-        }
-        
-        if(term && def && term.length > 2 && def.length > 5) {
-          // Avoid duplicates
-          const exists = terms.some(t => 
-            t.term.toLowerCase() === term.toLowerCase() || 
-            t.def.toLowerCase().includes(term.toLowerCase())
-          );
-          
-          if(!exists && terms.length < 100) {
-            terms.push({
-              term: term.length > 80 ? term.substring(0, 77) + '...' : term,
-              def: def.length > 150 ? def.substring(0, 147) + '...' : def,
-              context: sentence
-            });
+
+  // Scan paragraphs for patterns
+  for(const paragraph of paragraphs){
+    const sentences = paragraph.split(/(?<=[.!?])\s+/);
+    for(const sentence of sentences){
+      for(const pat of patterns){
+        const m = sentence.match(pat);
+        if(m){
+          let term = m[1] ? m[1].trim() : null;
+          let def = m[2] ? m[2].trim() : sentence.trim();
+          if(term && def && term.length>1 && def.length>5){
+            const key = term.toLowerCase();
+            if(!terms.some(t => t.term.toLowerCase() === key)){
+              // compute a small relevance score by summing frequencies of words in def
+              const score = def.split(/\W+/).reduce((s, w) => s + (freq[w.toLowerCase()] || 0), 0);
+              terms.push({term, def, context: paragraph.slice(0,240), score});
+            }
           }
         }
-        break; // Stop checking other patterns for this sentence
       }
     }
   }
-  
-  // If no structured terms found, create summary chunks
-  if(terms.length === 0) {
-    const chunks = text.match(/.{1,400}[.!?\s](?=\s|$)/g) || [];
-    chunks.slice(0, 10).forEach((chunk, i) => {
+
+  // If nothing found, generate "summary chunks" as fallback
+  if(terms.length === 0){
+    const chunks = joined.match(/.{1,300}[.!?\s]/g) || [];
+    chunks.slice(0, 20).forEach((chunk, i) => {
       terms.push({
-        term: `Summary Part ${i + 1}`,
-        def: chunk.trim().substring(0, 200) + (chunk.length > 200 ? '...' : ''),
-        context: 'Document summary'
+        term: `Summary ${i+1}`,
+        def: chunk.trim().substring(0, 280),
+        context: 'Document summary',
+        score: i
       });
     });
   }
-  
-  return terms.slice(0, 50); // Limit to 50 terms
+
+  // Sort by score desc, then limit
+  terms.sort((a,b) => (b.score||0) - (a.score||0));
+  return terms.slice(0, 200);
 }
 
 /* ---------------------------
-   Improved Question Generation
+   Term highlighting utility
 --------------------------- */
+function highlightText(text, query){
+  if(!query) return text;
+  try{
+    const q = escapeReg(query.trim());
+    const re = new RegExp(`(${q})`, 'ig');
+    return text.replace(re, '<span class="highlight">$1</span>');
+  }catch(e){
+    return text;
+  }
+}
+
+/* ---------------------------
+   Improved Question Generation (as before, slightly tuned)
+--------------------------- */
+// (same robust functions from your original file — included here for completeness)
 function buildSeedsFromText(){
   const text = (window.App && App.pdfText) ? App.pdfText : '';
   if(!text || text.trim().length < 50){ 
@@ -521,71 +499,45 @@ function buildSeedsFromText(){
     return; 
   }
   
-  // Improved sentence splitting with context preservation
   const sentences = text.replace(/\s+/g, ' ')
     .split(/(?<=[.!?])\s+(?=[A-Z])/)
     .map(s => s.trim())
     .filter(s => s.length > 30 && s.length < 500);
-  
-  // Score sentences for question-worthiness
+
   const scoredSentences = sentences.map(sentence => {
     let score = 0;
-    
-    // Higher score for sentences with definitions
     if (/^(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:is|are|means|defined as|refers to)/i.test(sentence)) score += 3;
-    
-    // Higher score for sentences with colons (often definitions)
     if (sentence.includes(':')) score += 2;
-    
-    // Higher score for sentences with important markers
     if (/(?:important|key|critical|essential|primary|major)\s+[a-z]+/i.test(sentence)) score += 2;
-    
-    // Higher score for sentences with numbers or dates
     if (/\d+/.test(sentence)) score += 1;
-    
-    // Higher score for longer sentences (more content)
     if (sentence.length > 100) score += 1;
-    
     return { sentence, score };
   });
-  
-  // Sort by score and take top seeds
-  scoredSentences.sort((a, b) => b.score - a.score);
-  const topSeeds = scoredSentences.slice(0, 100).map(s => s.sentence);
-  
-  // Deduplicate
+  scoredSentences.sort((a,b) => b.score - a.score);
+  const topSeeds = scoredSentences.slice(0, 200).map(s => s.sentence);
+
   const seen = new Set();
   const uniqueSeeds = [];
-  
-  for(const seed of topSeeds) {
-    const key = seed.toLowerCase()
-      .replace(/[^a-z0-9 ]+/g, '')
-      .substring(0, 100);
-    
-    if(!seen.has(key) && uniqueSeeds.length < 50) {
+  for(const seed of topSeeds){
+    const key = seed.toLowerCase().replace(/[^a-z0-9 ]+/g,'').substring(0,120);
+    if(!seen.has(key) && uniqueSeeds.length < 200){
       seen.add(key);
       uniqueSeeds.push(seed);
     }
   }
-  
+
   App.seeds = uniqueSeeds;
   $('#seedCount').textContent = App.seeds.length;
   rebuildNumDropdown(App.seeds.length);
-  
-  if(App.seeds.length === 0) {
-    toast('Could not extract meaningful content from PDF');
-  } else {
-    toast(`Extracted ${App.seeds.length} question seeds`);
-  }
+  if(App.seeds.length === 0) toast('Could not extract meaningful content from PDF');
+  else toast(`Extracted ${App.seeds.length} question seeds`);
 }
 
 function rebuildNumDropdown(max){
   const sel = $('#numQuestions');
   sel.innerHTML = '';
-  
   max = Math.max(1, Math.min(100, Math.floor(max)));
   const limit = Math.min(50, max);
-  
   for(let i = 1; i <= limit; i++){
     const o = document.createElement('option'); 
     o.value = i; 
@@ -604,38 +556,24 @@ function generateQuestionsFromSeeds(requested, focusArr, difficulty){
   const used = new Set();
 
   function extractKeyword(sentence){
-    // Try to find the most important word in the sentence
     const words = sentence.split(/\s+/)
       .map(w => w.replace(/[^a-zA-Z\-']+/g, ''))
       .filter(w => w.length > 3 && !/^(this|that|there|which|where|when|what|who|how|why|have|has|had|been|being|does|did|doing|will|shall|should|could|would|might|must|can|may)$/i.test(w));
-    
     if(words.length === 0) return null;
-    
-    // Prefer focus keywords
     if(focusArr.length > 0){
       for(const focus of focusArr){
-        const focusWord = words.find(w => 
-          w.toLowerCase().includes(focus) || 
-          w.toLowerCase().startsWith(focus)
-        );
+        const focusWord = words.find(w => w.toLowerCase().includes(focus) || w.toLowerCase().startsWith(focus));
         if(focusWord) return focusWord;
       }
     }
-    
-    // Prefer nouns (simple heuristic: capitalized words or longer words)
     const nouns = words.filter(w => /^[A-Z]/.test(w) || w.length > 6);
     if(nouns.length > 0){
-      // Pick the most unique noun (not common words)
       const commonWords = new Set(['concept', 'process', 'system', 'method', 'approach', 'technique']);
       const uniqueNouns = nouns.filter(w => !commonWords.has(w.toLowerCase()));
       if(uniqueNouns.length > 0) return uniqueNouns[0];
       return nouns[0];
     }
-    
-    // Fallback to longest word
-    return words.reduce((longest, current) => 
-      current.length > longest.length ? current : longest
-    );
+    return words.reduce((longest, current) => current.length > longest.length ? current : longest);
   }
 
   function generateDistractors(correct, sentence){
@@ -644,14 +582,12 @@ function generateQuestionsFromSeeds(requested, focusArr, difficulty){
       .map(w => w.replace(/[^a-zA-Z\-']+/g, ''))
       .filter(w => w.length > 3 && w.toLowerCase() !== correct.toLowerCase());
     
-    // Add similar words from the sentence
     words.forEach(w => {
       if(distractors.size < 3 && w !== correct) {
         distractors.add(w);
       }
     });
     
-    // If we need more distractors, generate some generic ones
     const generic = [
       'Different approach',
       'Alternative method',
@@ -670,46 +606,28 @@ function generateQuestionsFromSeeds(requested, focusArr, difficulty){
     return Array.from(distractors).slice(0, 3);
   }
 
-  // Filter seeds by focus if specified
   let candidateSeeds = [...avail];
   if(focusArr.length > 0){
-    candidateSeeds = candidateSeeds.filter(seed => 
-      focusArr.some(focus => seed.toLowerCase().includes(focus))
-    );
+    candidateSeeds = candidateSeeds.filter(seed => focusArr.some(focus => seed.toLowerCase().includes(focus)));
   }
-  
   if(candidateSeeds.length === 0){
     candidateSeeds = [...avail];
   }
-
-  // Shuffle candidate seeds
   shuffle(candidateSeeds);
 
   for(let i = 0; i < Math.min(requested, candidateSeeds.length * 2); i++){
     if(out.length >= requested) break;
-    
     const seedIndex = i % candidateSeeds.length;
     const seed = candidateSeeds[seedIndex];
     const keyword = extractKeyword(seed);
-    
     if(!keyword) continue;
-    
-    // Create cloze question
     const regex = new RegExp(`\\b${escapeReg(keyword)}\\b`, 'gi');
     const questionText = seed.replace(regex, '__________');
-    
-    // Skip if replacement didn't work or question is too short
     if(questionText === seed || questionText.length < 20) continue;
-    
     const distractors = generateDistractors(keyword, seed);
     const options = shuffle([keyword, ...distractors]);
     const answerIndex = options.indexOf(keyword);
-    
-    // Create a unique key for this question
-    const questionKey = questionText.toLowerCase()
-      .replace(/[^a-z0-9 ]+/g, '')
-      .substring(0, 100);
-    
+    const questionKey = questionText.toLowerCase().replace(/[^a-z0-9 ]+/g, '').substring(0, 100);
     if(!used.has(questionKey) && answerIndex !== -1){
       used.add(questionKey);
       out.push({
@@ -805,12 +723,10 @@ async function loadPDF(file){
       const pageText = content.items.map(item => item.str).join(' ');
       allText += pageText + '\n\n';
       
-      // Update progress
       const progress = Math.round((i / pdf.numPages) * 95) + 5;
       $('#progressBar').style.width = progress + '%';
       $('#progressText').textContent = `Extracting page ${i} of ${pdf.numPages}`;
       
-      // Small delay to show progress
       await new Promise(resolve => setTimeout(resolve, 10));
     }
     
@@ -911,31 +827,20 @@ function refreshNavigator(){
   const buttons = $('#questionGrid').children;
   
   Array.from(buttons).forEach((button, index) => {
-    // Reset classes
     button.className = 'p-2 rounded text-sm transition-colors';
-    
-    if(index === App.currentIndex){
-      button.classList.add('ring-2', 'ring-blue-500', 'font-bold');
-    }
-    
+    if(index === App.currentIndex) button.classList.add('ring-2', 'ring-blue-500', 'font-bold');
     if(App.userAnswers[index] === undefined){
-      // Unanswered
       button.classList.add('bg-gray-100', 'hover:bg-gray-200');
     } else {
       const question = App.questions[index];
       const chosen = App.userAnswers[index];
-      
       if(chosen === question.ans){
-        button.classList.add('bg-green-200', 'hover:bg-green-300'); // Correct
+        button.classList.add('bg-green-200', 'hover:bg-green-300');
       } else {
-        button.classList.add('bg-red-200', 'hover:bg-red-300'); // Wrong
+        button.classList.add('bg-red-200', 'hover:bg-red-300');
       }
     }
-    
-    // Mark skipped questions
-    if(App.skipped.has(index)){
-      button.classList.add('opacity-50');
-    }
+    if(App.skipped.has(index)) button.classList.add('opacity-50');
   });
 }
 
@@ -945,12 +850,10 @@ function loadQuestion(index){
   App.currentIndex = index;
   const question = App.questions[index];
   
-  // Update UI elements
   $('#qTitle').textContent = `Question ${index + 1}`;
   $('#qIndex').textContent = `${index + 1} of ${App.questions.length}`;
   $('#qText').textContent = question.question;
   
-  // Clear and rebuild options
   const optionsContainer = $('#options');
   optionsContainer.innerHTML = '';
   
@@ -958,40 +861,23 @@ function loadQuestion(index){
     const optionElement = document.createElement('div');
     optionElement.className = 'p-3 border rounded cursor-pointer bg-white hover:bg-gray-50 transition-colors';
     optionElement.innerHTML = `<strong class="mr-2">${String.fromCharCode(65 + optionIndex)}.</strong> ${option}`;
-    
     optionElement.addEventListener('click', () => selectAnswer(optionIndex));
     optionsContainer.appendChild(optionElement);
   });
   
-  // Hide hint and reset state
   $('#hint').classList.add('hidden');
-  
-  // If already answered, show the answer state
-  if(App.userAnswers[index] !== undefined){
-    showAnswerState(App.userAnswers[index]);
-  }
-  
-  // Update navigator and powerups
+  if(App.userAnswers[index] !== undefined) showAnswerState(App.userAnswers[index]);
   refreshNavigator();
   updatePowerupUI();
-  
-  // Reset question timer if in question mode
-  if(App.timers.mode === 'question'){
-    resetQuestionTimer();
-  }
+  if(App.timers.mode === 'question') resetQuestionTimer();
 }
 
 function selectAnswer(choice){
   const currentIndex = App.currentIndex;
-  
-  // Don't allow re-answering
   if(App.userAnswers[currentIndex] !== undefined) return;
-  
   App.userAnswers[currentIndex] = choice;
   const question = App.questions[currentIndex];
   const isCorrect = (choice === question.ans);
-  
-  // Update stats
   if(isCorrect){
     App.correctCount++;
     App.streak++;
@@ -1004,40 +890,24 @@ function selectAnswer(choice){
     playSound('#incorrectSound');
     toast('Incorrect');
   }
-  
-  // Show answer feedback
   showAnswerState(choice);
   refreshNavigator();
   updatePowerupUI();
-  
-  // Auto-advance after short delay if not last question
   if(currentIndex < App.questions.length - 1){
     setTimeout(() => {
       loadQuestion(currentIndex + 1);
-    }, 1500);
+    }, 1200);
   }
 }
 
 function showAnswerState(chosen){
   const question = App.questions[App.currentIndex];
   const options = Array.from($('#options').children);
-  
   options.forEach((option, index) => {
     option.classList.remove('option-correct', 'option-wrong', 'fade');
-    
-    if(index === question.ans){
-      option.classList.add('option-correct');
-    }
-    
-    if(index === chosen && chosen !== question.ans){
-      option.classList.add('option-wrong');
-    }
-    
-    if(index !== question.ans && index !== chosen){
-      option.classList.add('fade');
-    }
-    
-    // Disable clicks after answering
+    if(index === question.ans) option.classList.add('option-correct');
+    if(index === chosen && chosen !== question.ans) option.classList.add('option-wrong');
+    if(index !== question.ans && index !== chosen) option.classList.add('fade');
     option.style.pointerEvents = 'none';
   });
 }
@@ -1057,13 +927,11 @@ $('#prevBtn').addEventListener('click', () => {
 
 $('#submitBtn').addEventListener('click', () => {
   const unanswered = App.questions.length - Object.keys(App.userAnswers).length;
-  
   if(unanswered > 0){
     if(!confirm(`You have ${unanswered} unanswered questions. Submit anyway?`)){
       return;
     }
   }
-  
   submitQuiz();
 });
 
@@ -1074,7 +942,6 @@ function submitQuiz(){
   const correct = App.correctCount;
   const percentage = Math.round((correct / total) * 100);
   
-  // Update results summary
   $('#resultsSummary').innerHTML = `
     <div class="p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border">
       <div class="text-center">
@@ -1098,7 +965,6 @@ function submitQuiz(){
     </div>
   `;
   
-  // Build detailed results list
   const resultsList = $('#resultsList');
   resultsList.innerHTML = '';
   
@@ -1137,11 +1003,9 @@ function submitQuiz(){
     resultsList.appendChild(item);
   });
   
-  // Show results card
   $('#quizCard').classList.add('hidden');
   $('#resultsCard').classList.remove('hidden');
   
-  // Celebration for good scores
   if(percentage >= 80){
     playSound('#powerSound');
     confettiBurst();
@@ -1159,17 +1023,13 @@ $('#pu5050').addEventListener('click', () => {
     toast('No 50:50 power-ups remaining');
     return;
   }
-  
   const question = App.questions[App.currentIndex];
   const options = Array.from($('#options').children);
   const wrongOptions = options.map((_, index) => index).filter(index => index !== question.ans);
-  
-  // Shuffle and take 2 wrong options
   shuffle(wrongOptions).slice(0, 2).forEach(index => {
     options[index].classList.add('fade');
     options[index].style.pointerEvents = 'none';
   });
-  
   App.powerups['5050']--;
   updatePowerupUI();
   playSound('#powerSound');
@@ -1181,11 +1041,9 @@ $('#puHint').addEventListener('click', () => {
     toast('No hints remaining');
     return;
   }
-  
   const question = App.questions[App.currentIndex];
   $('#hint').textContent = '💡 ' + (question.hint || 'Look for key terms in the context');
   $('#hint').classList.remove('hidden');
-  
   App.powerups.hint--;
   updatePowerupUI();
   playSound('#powerSound');
@@ -1196,23 +1054,18 @@ $('#puSkip').addEventListener('click', () => {
     toast('No skips remaining');
     return;
   }
-  
   App.skipped.add(App.currentIndex);
   App.powerups.skip--;
-  
-  // Move to next unanswered question
   let nextIndex = App.currentIndex + 1;
   while(nextIndex < App.questions.length && App.userAnswers[nextIndex] !== undefined){
     nextIndex++;
   }
-  
   if(nextIndex >= App.questions.length){
     nextIndex = 0;
     while(nextIndex < App.currentIndex && App.userAnswers[nextIndex] !== undefined){
       nextIndex++;
     }
   }
-  
   updatePowerupUI();
   loadQuestion(nextIndex);
   playSound('#powerSound');
@@ -1246,15 +1099,12 @@ document.querySelectorAll('.shopBuy').forEach(button => {
   button.addEventListener('click', function() {
     const price = parseInt(this.dataset.price);
     const power = this.dataset.power;
-    
     if(App.coins < price){
       toast('Not enough coins!');
       return;
     }
-    
     App.coins -= price;
     App.powerups[power] = (App.powerups[power] || 0) + 1;
-    
     updatePowerupUI();
     $('#shopModal').classList.add('hidden');
     playSound('#coinSound');
@@ -1269,27 +1119,22 @@ $('#applyTimers').addEventListener('click', () => {
   App.timers.mode = $('#timerMode').value;
   App.timers.question = Math.max(5, parseInt($('#questionTimerInput').value) || 30);
   App.timers.quiz = Math.max(10, parseInt($('#quizTimerInput').value) || 300);
-  
   startTimers();
   toast('Timer settings updated');
 });
 
 function startTimers(){
   stopAllTimers();
-  
   if(App.timers.mode === 'none'){
     $('#timerVal').textContent = '—';
     return;
   }
-  
   if(App.timers.mode === 'quiz'){
     App.timers.quizRemaining = App.timers.quiz;
     $('#timerVal').textContent = formatTime(App.timers.quizRemaining);
-    
     App.timers.interval = setInterval(() => {
       App.timers.quizRemaining--;
       $('#timerVal').textContent = formatTime(App.timers.quizRemaining);
-      
       if(App.timers.quizRemaining <= 0){
         clearInterval(App.timers.interval);
         submitQuiz();
@@ -1302,23 +1147,15 @@ function startTimers(){
 
 function resetQuestionTimer(){
   if(App.timers.mode !== 'question') return;
-  
   App.timers.questionRemaining = App.timers.question;
   $('#timerVal').textContent = formatTime(App.timers.questionRemaining);
-  
   if(App.timers.interval) clearInterval(App.timers.interval);
-  
   App.timers.interval = setInterval(() => {
     App.timers.questionRemaining--;
     $('#timerVal').textContent = formatTime(App.timers.questionRemaining);
-    
     if(App.timers.questionRemaining <= 0){
       clearInterval(App.timers.interval);
-      
-      // Auto-submit null answer for this question
       App.userAnswers[App.currentIndex] = null;
-      
-      // Move to next unanswered question
       const nextIndex = findNextUnanswered();
       if(nextIndex !== -1){
         loadQuestion(nextIndex);
@@ -1354,14 +1191,15 @@ function findNextUnanswered(){
 }
 
 /* ---------------------------
-   Saved Quizzes System - FIXED
+   Saved Quizzes System - FIXED & RELIABLE
 --------------------------- */
+const STORAGE_KEY = 'quizpro_saved';
+
+// We'll keep a single delegated event listener for the saved list
 function loadSavedQuizzes(){
-  const savedQuizzes = JSON.parse(localStorage.getItem('quizpro_saved') || '[]');
+  const savedQuizzes = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
   const quizList = $('#quizList');
-  
   quizList.innerHTML = '';
-  
   if(savedQuizzes.length === 0){
     quizList.innerHTML = `
       <div class="text-center p-6 text-gray-500">
@@ -1371,14 +1209,11 @@ function loadSavedQuizzes(){
     `;
     return;
   }
-  
   savedQuizzes.forEach((quiz, index) => {
     const quizElement = document.createElement('div');
     quizElement.className = 'saved-quiz-item p-4 border rounded-lg bg-white hover:shadow-md transition-all';
-    
     const date = new Date(quiz.created);
     const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    
     quizElement.innerHTML = `
       <div class="flex justify-between items-start">
         <div class="flex-1">
@@ -1403,36 +1238,35 @@ function loadSavedQuizzes(){
         </div>
       </div>
     `;
-    
     quizList.appendChild(quizElement);
   });
-  
-  // Re-attach event listeners using event delegation
-  quizList.addEventListener('click', function(event){
-    const target = event.target.closest('button');
-    if(!target) return;
-    
-    const savedQuizzes = JSON.parse(localStorage.getItem('quizpro_saved') || '[]');
-    const index = parseInt(target.dataset.index);
-    
-    if(target.classList.contains('loadSaved') && !isNaN(index)){
-      const quiz = savedQuizzes[index];
-      if(quiz && quiz.questions){
-        startQuizWith(quiz.questions);
-        $('#savedCard').classList.add('hidden');
-        toast(`Loaded "${quiz.title}"`);
+
+  // Attach single delegated listener only once
+  if(!quizList._hasDelegation){
+    quizList.addEventListener('click', function(event){
+      const target = event.target.closest('button');
+      if(!target) return;
+      const savedQuizzes = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      const index = parseInt(target.dataset.index);
+      if(target.classList.contains('loadSaved') && !isNaN(index)){
+        const quiz = savedQuizzes[index];
+        if(quiz && quiz.questions){
+          startQuizWith(quiz.questions);
+          $('#savedCard').classList.add('hidden');
+          toast(`Loaded "${quiz.title}"`);
+        }
       }
-    }
-    
-    if(target.classList.contains('deleteSaved') && !isNaN(index)){
-      if(confirm('Are you sure you want to delete this saved quiz?')){
-        savedQuizzes.splice(index, 1);
-        localStorage.setItem('quizpro_saved', JSON.stringify(savedQuizzes));
-        loadSavedQuizzes();
-        toast('Quiz deleted');
+      if(target.classList.contains('deleteSaved') && !isNaN(index)){
+        if(confirm('Are you sure you want to delete this saved quiz?')){
+          savedQuizzes.splice(index, 1);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(savedQuizzes));
+          loadSavedQuizzes();
+          toast('Quiz deleted');
+        }
       }
-    }
-  });
+    });
+    quizList._hasDelegation = true;
+  }
 }
 
 $('#saveQuizBtn').addEventListener('click', () => {
@@ -1440,7 +1274,6 @@ $('#saveQuizBtn').addEventListener('click', () => {
     toast('No quiz to save');
     return;
   }
-  
   $('#quizTitle').value = App.pdfText ? `Quiz from ${$('#fileName').textContent || 'PDF'}` : 'My Quiz';
   $('#saveModal').classList.remove('hidden');
 });
@@ -1456,7 +1289,6 @@ $('#cancelSave').addEventListener('click', () => {
 $('#saveToLocal').addEventListener('click', () => {
   const title = $('#quizTitle').value.trim() || 'Untitled Quiz';
   const category = $('#quizCategory').value || 'General';
-  
   const quizData = {
     id: 'quiz_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
     title: title,
@@ -1465,19 +1297,20 @@ $('#saveToLocal').addEventListener('click', () => {
     created: new Date().toISOString(),
     pdfName: $('#fileName').textContent || null
   };
-  
-  let savedQuizzes = JSON.parse(localStorage.getItem('quizpro_saved') || '[]');
-  savedQuizzes.push(quizData);
-  localStorage.setItem('quizpro_saved', JSON.stringify(savedQuizzes));
-  
+  let savedQuizzes = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  savedQuizzes.unshift(quizData); // push to top
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(savedQuizzes));
   $('#saveModal').classList.add('hidden');
   toast('Quiz saved successfully!');
+  // Immediately update saved UI and show saved panel so user sees it
   loadSavedQuizzes();
+  $('#savedCard').classList.remove('hidden');
+  $('#quizCard').classList.add('hidden');
 });
 
 $('#clearStorageBtn').addEventListener('click', () => {
   if(confirm('Are you sure you want to clear all saved quizzes? This cannot be undone.')){
-    localStorage.removeItem('quizpro_saved');
+    localStorage.removeItem(STORAGE_KEY);
     loadSavedQuizzes();
     toast('All saved quizzes cleared');
   }
@@ -1491,14 +1324,12 @@ $('#exportAllBtn').addEventListener('click', () => {
     toast('No seeds to export');
     return;
   }
-  
   const exportData = {
     seeds: App.seeds,
     exportedAt: new Date().toISOString(),
     source: App.pdfText ? 'PDF extraction' : 'Manual generation',
     count: App.seeds.length
   };
-  
   const blob = new Blob([JSON.stringify(exportData, null, 2)], {type: 'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1508,7 +1339,6 @@ $('#exportAllBtn').addEventListener('click', () => {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  
   toast('Seeds exported successfully');
 });
 
@@ -1517,7 +1347,6 @@ $('#exportResults').addEventListener('click', () => {
     toast('No results to export');
     return;
   }
-  
   const exportData = {
     score: App.score,
     correctCount: App.correctCount,
@@ -1532,7 +1361,6 @@ $('#exportResults').addEventListener('click', () => {
     })),
     exportedAt: new Date().toISOString()
   };
-  
   const blob = new Blob([JSON.stringify(exportData, null, 2)], {type: 'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1542,24 +1370,20 @@ $('#exportResults').addEventListener('click', () => {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  
   toast('Results exported successfully');
 });
 
 /* ---------------------------
-   Study Preview - IMPROVED
+   Study Preview - IMPROVED & EXPORTABLE
 --------------------------- */
 $('#buildStudyBtn').addEventListener('click', () => {
   if(!App.pdfText || App.pdfText.trim().length < 50){
     toast('Upload a PDF with sufficient content first');
     return;
   }
-  
   const terms = extractTermsAndDefinitions(App.pdfText);
   const studyContent = $('#studyContent');
-  
   studyContent.innerHTML = '';
-  
   if(terms.length === 0){
     studyContent.innerHTML = `
       <div class="text-center p-6 text-gray-500">
@@ -1569,46 +1393,46 @@ $('#buildStudyBtn').addEventListener('click', () => {
       </div>
     `;
   } else {
+    // Render list
     terms.forEach((term, index) => {
       const termElement = document.createElement('div');
       termElement.className = 'p-4 border rounded-lg bg-white hover:bg-gray-50 transition-colors';
-      
+      termElement.dataset.term = term.term;
+      termElement.dataset.def = term.def;
+      termElement.dataset.context = term.context || '';
       termElement.innerHTML = `
         <div class="flex justify-between items-start">
           <div class="flex-1">
-            <div class="font-bold text-lg text-blue-700">${index + 1}. ${term.term}</div>
-            <div class="mt-2 text-gray-700">${term.def}</div>
+            <div class="font-bold text-lg text-blue-700">${index + 1}. <span class="termText">${escapeHtml(term.term)}</span></div>
+            <div class="mt-2 text-gray-700 defText">${escapeHtml(term.def)}</div>
             ${term.context && term.context.length > 50 ? `
-              <div class="mt-2 text-sm text-gray-500 p-2 bg-gray-50 rounded">
+              <div class="mt-2 text-sm text-gray-500 p-2 bg-gray-50 rounded contextText">
                 <i class="fa-solid fa-quote-left mr-1"></i>
-                ${term.context.length > 150 ? term.context.substring(0, 150) + '...' : term.context}
+                ${escapeHtml(term.context.length > 150 ? term.context.substring(0, 150) + '...' : term.context)}
               </div>
             ` : ''}
           </div>
           <div class="ml-4">
             <button class="copyTerm px-2 py-1 text-xs bg-gray-100 rounded hover:bg-gray-200 transition-colors"
-                    data-term="${term.term}" data-def="${term.def}">
+                    data-term="${escapeHtml(term.term)}" data-def="${escapeHtml(term.def)}">
               <i class="fa-solid fa-copy mr-1"></i> Copy
             </button>
           </div>
         </div>
       `;
-      
       studyContent.appendChild(termElement);
     });
-    
-    // Add copy functionality
+
+    // Copy term buttons (event delegation)
     studyContent.addEventListener('click', (event) => {
       const target = event.target.closest('.copyTerm');
       if(target){
         const term = target.dataset.term;
         const def = target.dataset.def;
         const text = `${term}: ${def}`;
-        
         navigator.clipboard.writeText(text).then(() => {
           toast('Copied to clipboard!');
         }).catch(() => {
-          // Fallback for older browsers
           const textArea = document.createElement('textarea');
           textArea.value = text;
           document.body.appendChild(textArea);
@@ -1619,41 +1443,94 @@ $('#buildStudyBtn').addEventListener('click', () => {
         });
       }
     });
-    
-    // Add search functionality
-    const searchBar = document.createElement('div');
-    searchBar.className = 'mb-4';
-    searchBar.innerHTML = `
-      <div class="relative">
-        <input type="text" id="studySearch" placeholder="Search terms..." 
-               class="w-full p-3 border rounded-lg pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500">
-        <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-      </div>
-    `;
-    
-    studyContent.insertBefore(searchBar, studyContent.firstChild);
-    
-    // Add search functionality
+
+    // Search / highlight functionality
+    $('#studySearch').value = '';
     $('#studySearch').addEventListener('input', function() {
-      const searchTerm = this.value.toLowerCase();
-      const termElements = studyContent.querySelectorAll('div.p-4');
-      
-      termElements.forEach(element => {
-        const text = element.textContent.toLowerCase();
+      const searchTerm = this.value.trim().toLowerCase();
+      const items = studyContent.querySelectorAll('.saved-quiz-item, .p-4');
+      items.forEach(item => {
+        const text = (item.textContent || '').toLowerCase();
         if(text.includes(searchTerm) || searchTerm === ''){
-          element.style.display = 'block';
+          item.style.display = 'block';
+          // highlighting
+          const termText = item.querySelector('.termText');
+          const defText = item.querySelector('.defText');
+          if(searchTerm && termText) termText.innerHTML = highlightText(escapeHtml(termText.textContent), searchTerm);
+          if(searchTerm && defText) defText.innerHTML = highlightText(escapeHtml(defText.textContent), searchTerm);
+          if(!searchTerm){
+            if(termText) termText.innerHTML = escapeHtml(termText.textContent);
+            if(defText) defText.innerHTML = escapeHtml(defText.textContent);
+          }
         } else {
-          element.style.display = 'none';
+          item.style.display = 'none';
         }
       });
     });
+
+    // Sorting
+    $('#studySort').addEventListener('change', () => {
+      const mode = $('#studySort').value;
+      const nodes = Array.from(studyContent.querySelectorAll('.p-4')).filter(n => n.dataset.term);
+      nodes.sort((a,b) => {
+        if(mode === 'alphabet'){
+          return a.dataset.term.localeCompare(b.dataset.term);
+        } else if(mode === 'length'){
+          return a.dataset.def.length - b.dataset.def.length;
+        } else {
+          // relevance by default: we don't have score here — keep original order
+          return 0;
+        }
+      });
+      nodes.forEach(n => studyContent.appendChild(n));
+    });
   }
-  
+
   $('#studyModal').classList.remove('hidden');
 });
 
+// Close study modal
 $('#closeStudyModal').addEventListener('click', () => {
   $('#studyModal').classList.add('hidden');
+});
+
+// Export study CSV
+$('#exportStudyCSV').addEventListener('click', () => {
+  const items = Array.from($('#studyContent').querySelectorAll('.p-4')).filter(n => n.dataset.term);
+  if(items.length === 0){ toast('No study items to export'); return; }
+  const rows = [['Term','Definition','Context']];
+  items.forEach(it => {
+    rows.push([it.dataset.term, it.dataset.def, it.dataset.context || '']);
+  });
+  const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `study-preview-${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('Study export ready');
+});
+
+// Copy All study text
+$('#copyAllStudy').addEventListener('click', () => {
+  const items = Array.from($('#studyContent').querySelectorAll('.p-4')).filter(n => n.dataset.term);
+  if(items.length === 0){ toast('No study items to copy'); return; }
+  const text = items.map(it => `${it.dataset.term}: ${it.dataset.def}`).join('\n\n');
+  navigator.clipboard.writeText(text).then(() => {
+    toast('All study items copied');
+  }).catch(() => {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textArea);
+    toast('All study items copied');
+  });
 });
 
 /* ---------------------------
@@ -1693,12 +1570,10 @@ $('#retryWrong').addEventListener('click', () => {
   const wrongQuestions = App.questions.filter((question, index) => {
     return App.userAnswers[index] !== question.ans;
   });
-  
   if(wrongQuestions.length === 0){
     toast('No wrong answers to retry!');
     return;
   }
-  
   startQuizWith(wrongQuestions);
   toast(`Retrying ${wrongQuestions.length} questions`);
 });
@@ -1721,7 +1596,6 @@ $('#openFull').addEventListener('click', () => {
   }
 });
 
-// Exit fullscreen on Escape key
 document.addEventListener('fullscreenchange', () => {
   if(!document.fullscreenElement){
     toast('Exited fullscreen mode');
@@ -1741,9 +1615,7 @@ function confettiBurst(){
   container.style.height = '100%';
   container.style.pointerEvents = 'none';
   container.style.zIndex = '9999';
-  
   document.body.appendChild(container);
-  
   for(let i = 0; i < 60; i++){
     const confetti = document.createElement('div');
     confetti.style.position = 'absolute';
@@ -1754,9 +1626,7 @@ function confettiBurst(){
     confetti.style.left = Math.random() * 100 + '%';
     confetti.style.top = '-20px';
     confetti.style.opacity = '0.9';
-    
     container.appendChild(confetti);
-    
     const animation = confetti.animate([
       { transform: `translate(0, 0) rotate(0deg)`, opacity: 1 },
       { transform: `translate(${Math.random() * 200 - 100}px, ${window.innerHeight + 100}px) rotate(${Math.random() * 720}deg)`, opacity: 0 }
@@ -1764,34 +1634,41 @@ function confettiBurst(){
       duration: 2000 + Math.random() * 1000,
       easing: 'cubic-bezier(0.1, 0.8, 0.9, 0.1)'
     });
-    
-    animation.onfinish = () => {
-      confetti.remove();
-    };
+    animation.onfinish = () => confetti.remove();
   }
-  
-  setTimeout(() => {
-    container.remove();
-  }, 3000);
+  setTimeout(() => container.remove(), 3000);
+}
+
+/* ---------------------------
+   Utility: escapeHtml
+--------------------------- */
+function escapeHtml(str){
+  if(!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 /* ---------------------------
    Initialize Application
 --------------------------- */
 function initializeApp(){
-  // Initialize dropdown
   rebuildNumDropdown(10);
-  
-  // Load saved quizzes
   loadSavedQuizzes();
-  
-  // Update UI
   updatePowerupUI();
-  
-  // Show welcome message
+  // Hook openExternalBtn to open a new tab (works more reliably)
+  const openExternalBtn = document.getElementById('openExternalBtn');
+  if(openExternalBtn){
+    openExternalBtn.onclick = () => {
+      try { window.open(window.location.href, '_blank'); } catch(e){ alert('Please open this page in your browser.'); }
+    };
+  }
   setTimeout(() => {
-    toast('Welcome to QuizPro! Upload a PDF to get started.', 3000);
-  }, 1000);
+    toast('Welcome to QuizPro! Upload a PDF to get started.', 2500);
+  }, 600);
 }
 
 // Start the application
