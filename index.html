@@ -1,2289 +1,1104 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>QuizPro — PDF to Quiz</title>
-
-<!-- TailwindCSS -->
-<script src="https://cdn.tailwindcss.com"></script>
-
-<!-- Icons -->
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
-
-<!-- PDF.js -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Complete Study & Quiz App</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 
 <style>
-/* Sidebar slide-out */
-#sidebarNav {
-  transform: translateX(-100%);
-  transition: transform .35s ease;
-}
-#sidebarNav.active {
-  transform: translateX(0);
-}
-.option-correct { background:#dcfce7 !important; border-color:#16a34a !important; }
-.option-wrong { background:#fee2e2 !important; border-color:#ef4444 !important; }
-.fade { opacity:.35; pointer-events:none; }
-/* New style for saved quiz items */
-.saved-quiz-item {
-  transition: all 0.2s ease;
-}
-.saved-quiz-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-/* Study guide styling */
-.study-section {
-  border-left: 4px solid #3b82f6;
-  background: linear-gradient(to right, #f8fafc, #ffffff);
-}
-.study-subsection {
-  border-left: 3px solid #60a5fa;
-  background: #f8fafc;
-}
-.study-point {
-  position: relative;
-  padding-left: 1.5rem;
-}
-.study-point:before {
-  content: "•";
-  position: absolute;
-  left: 0.5rem;
-  color: #3b82f6;
-  font-weight: bold;
-}
-.highlight-term {
-  background-color: #fef3c7;
-  padding: 0.1rem 0.3rem;
-  border-radius: 0.25rem;
-  font-weight: 600;
-}
-.memory-tip {
-  background: linear-gradient(135deg, #dbeafe, #e0e7ff);
-  border-left: 4px solid #4f46e5;
-}
-.helpline-box {
-  background: linear-gradient(135deg, #fef3c7, #fed7aa);
-  border: 2px solid #f59e0b;
-}
+    :root{
+        --primary-color:#4361ee;
+        --secondary-color:#3a0ca3;
+        --success-color:#4cc9f0;
+        --danger-color:#f72585;
+        --warning-color:#fca311;
+        --dark-text:#2b2d42;
+        --light-text:#6c757d;
+        --light-bg:#f6f7fb;
+        --card:#ffffff;
+        --part1-color:#4361ee;
+        --part2-color:#8b5cf6;
+    }
+    *{box-sizing:border-box}
+    body{
+        margin:0;
+        font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+        background:linear-gradient(180deg,#f2f4ff 0%,#f6f7fb 100%);
+        color:var(--dark-text);
+    }
+
+    /* Top App Bar */
+    .appbar{
+        position:sticky;top:0;z-index:1000;
+        background:#fff;
+        display:flex;gap:16px;align-items:center;justify-content:space-between;
+        padding:14px 18px;border-bottom:1px solid #eef0f4;
+    }
+    .brand{display:flex;gap:10px;align-items:center}
+    .brand .logo{
+        width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--primary-color),var(--secondary-color));
+        display:grid;place-items:center;color:#fff;font-weight:800;
+        box-shadow:0 8px 20px rgba(67,97,238,.25);
+    }
+    .brand .title{font-weight:800;letter-spacing:.2px}
+    .tabs{
+        display:flex;gap:8px;align-items:center;flex-wrap:wrap
+    }
+    .tab{
+        border:none;background:#f1f3ff;color:var(--primary-color);
+        padding:10px 14px;border-radius:12px;font-weight:700;cursor:pointer
+    }
+    .tab.active{background:var(--primary-color);color:#fff}
+    .right-actions{display:flex;gap:10px;align-items:center}
+    .pill{
+        background:#fff;border:1px solid #e9ecf3;border-radius:999px;padding:8px 12px;
+        display:flex;gap:8px;align-items:center;font-weight:700
+    }
+    .pill .dot{width:10px;height:10px;border-radius:50%;background:var(--success-color)}
+    .pill .coins{color:#f39c12}
+    .pill .score{color:var(--primary-color)}
+
+    /* Layout */
+    .wrapper{display:flex;gap:20px;max-width:1200px;margin:20px auto;padding:0 16px}
+    .sidebar{
+        width:300px;flex-shrink:0;background:#fff;border-radius:18px;padding:18px;
+        box-shadow:0 10px 30px rgba(0,0,0,.06);height:fit-content;position:sticky;top:80px
+    }
+    .sidebar h3{margin:0 0 10px 0}
+    .topic-filter{
+        margin-bottom:16px;
+    }
+    .topic-btns{
+        display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;
+    }
+    .topic-btn{
+        border:none;background:#f1f3ff;color:var(--primary-color);
+        padding:6px 10px;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer
+    }
+    .topic-btn.active{background:var(--primary-color);color:#fff}
+    .question-grid{
+        display:grid;grid-template-columns:repeat(5,1fr);gap:8px;max-height:200px;overflow-y:auto
+    }
+    .qbtn{
+        border:none;border-radius:10px;background:#f3f5ff;color:var(--secondary-color);
+        padding:10px;font-weight:800;cursor:pointer;font-size:0.9rem
+    }
+    .qbtn.active{outline:2px solid var(--primary-color)}
+    .qbtn.correct{background:#e7fbff}
+    .qbtn.wrong{background:#ffe7f1}
+    .qbtn.part1{border-left:3px solid var(--part1-color)}
+    .qbtn.part2{border-left:3px solid var(--part2-color)}
+
+    .shop-section{
+        margin-top:14px;border-top:1px dashed #e9ecf3;padding-top:14px
+    }
+    .nav-btn{
+        width:100%;border:none;border-radius:12px;padding:12px 14px;font-weight:800;
+        background:var(--primary-color);color:#fff;cursor:pointer
+    }
+
+    /* Main */
+    .main{flex:1;display:flex;flex-direction:column;gap:16px}
+    .stats-bar{
+        display:flex;gap:14px;flex-wrap:wrap
+    }
+    .stat{
+        flex:1;min-width:120px;background:#fff;border-radius:16px;padding:14px;text-align:center;
+        box-shadow:0 10px 20px rgba(0,0,0,.05)
+    }
+    .stat .val{font-size:1.6rem;font-weight:800;color:var(--primary-color);line-height:1}
+    .stat .lab{font-size:.8rem;color:var(--light-text)}
+
+    .card{
+        background:#fff;border-radius:20px;padding:22px;box-shadow:0 12px 28px rgba(0,0,0,.07)
+    }
+
+    /* Study Mode */
+    .toc{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+    .toc button{border:none;background:#f7f8fe;color:#4a4e69;border-radius:12px;padding:8px 12px;cursor:pointer;font-weight:700}
+    .toc button.part1{border-left:3px solid var(--part1-color)}
+    .toc button.part2{border-left:3px solid var(--part2-color)}
+    .chapter{display:none}
+    .chapter.active{display:block}
+    .chapter h2{margin-top:0}
+    .topic-badge{
+        display:inline-block;padding:4px 10px;border-radius:20px;font-size:0.75rem;font-weight:700;margin-right:8px;
+    }
+    .badge-part1{background:#e7f0ff;color:var(--part1-color)}
+    .badge-part2{background:#f3f0ff;color:var(--part2-color)}
+    .note{background:#f8f9fd;border-left:4px solid var(--primary-color);padding:10px;border-radius:8px}
+
+    /* Quiz */
+    .question-card{position:relative}
+    .question-header{
+        display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding-bottom:8px;border-bottom:2px solid #f0f1f7
+    }
+    .question-title{font-weight:800;color:var(--secondary-color)}
+    .question-text{font-size:1.25rem;font-weight:700;margin:16px 0 12px}
+    .options{display:grid;grid-template-columns:1fr;gap:10px}
+    .option{
+        display:flex;gap:12px;align-items:center;border:2px solid #edf0f7;background:#f7f8fe;border-radius:14px;padding:14px;
+        cursor:pointer;transition:.2s
+    }
+    .option:hover{transform:translateY(-2px);border-color:var(--primary-color)}
+    .option.correct{border-color:#34c6eb;background:#eafeff}
+    .option.incorrect{border-color:#ff5ca8;background:#fff1f7}
+    .option.faded{opacity:.35;pointer-events:none}
+    .letter{
+        width:34px;height:34px;border-radius:10px;background:#fff;display:grid;place-items:center;font-weight:800;border:1px solid #e9ecf3
+    }
+    .hint{margin-top:8px;font-size:.95rem;color:#555}
+    .controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+    .btn{
+        border:none;border-radius:12px;padding:12px 14px;font-weight:800;cursor:pointer
+    }
+    .btn-primary{background:var(--primary-color);color:#fff}
+    .btn-secondary{background:#eef1ff;color:var(--primary-color)}
+    .btn-ghost{background:#fff;border:2px solid #edf0f7;color:#495057}
+    .submit-btn{margin-left:auto}
+
+    /* Power-ups (always visible) */
+    .powerups{
+        display:flex;gap:10px;flex-wrap:wrap;align-items:center
+    }
+    .powerup{
+        display:flex;flex-direction:column;align-items:center;gap:6px;background:#fff;border:1px solid #eef0f7;border-radius:14px;padding:10px 12px;width:96px;
+        box-shadow:0 6px 14px rgba(0,0,0,.04);cursor:pointer
+    }
+    .powerup .icon{font-weight:900}
+    .powerup .count{font-size:.9rem;color:#666}
+
+    /* Shop modal */
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:2000}
+    .modal.show{display:flex}
+    .modal-card{background:#fff;border-radius:22px;width:min(680px,92vw);max-height:90vh;overflow:auto;padding:20px}
+    .shop-items{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
+    .shop-item{border:1px solid #eef0f7;border-radius:16px;padding:14px;background:#fcfcff}
+    .shop-item h4{margin:6px 0}
+    .shop-item button{width:100%}
+
+    /* Results */
+    .results{display:none}
+    .result-item{padding:12px;border-radius:12px;background:#f8f9fb;margin:10px 0}
+    .result-item.correct{border-left:4px solid #34c6eb}
+    .result-item.incorrect{border-left:4px solid #ff5ca8}
+
+    /* Timer Setup */
+    .timerbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .timeropt{border:2px solid #edf0f7;padding:10px;border-radius:12px;background:#fff;cursor:pointer}
+    .timeropt.active{border-color:var(--primary-color)}
+
+    /* Confetti */
+    .confetti-container{position:fixed;inset:0;pointer-events:none;z-index:3000}
+    .confetti{position:absolute;width:10px;height:10px;opacity:.8;animation:fall 3s ease-out forwards}
+    @keyframes fall{
+        to{transform:translateY(110vh) rotate(720deg);opacity:0}
+    }
+
+    /* Quiz settings */
+    .quiz-settings{
+        background:#f8f9fd;border-radius:12px;padding:12px;margin-bottom:16px
+    }
+    .quiz-settings h4{margin-top:0}
+    .settings-grid{
+        display:grid;grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));gap:10px
+    }
+    .setting-item{display:flex;flex-direction:column;gap:4px}
+    .setting-item select, .setting-item input{
+        padding:8px;border-radius:8px;border:1px solid #e9ecf3
+    }
+
+    /* Responsive */
+    @media (max-width:992px){
+        .wrapper{flex-direction:column}
+        .sidebar{position:relative;top:auto;width:100%}
+        .question-grid{grid-template-columns:repeat(6,1fr)}
+        .shop-items{grid-template-columns:1fr}
+    }
 </style>
-
-<!-- Force Browser (Block Messenger / FB / IG in-app) -->
-<script>
-(function(){
-  const ua = navigator.userAgent || "";
-  const inApp = /FBAN|FBAV|Instagram|Messenger/i.test(ua);
-  const params = new URLSearchParams(location.search);
-  if(inApp && !params.get("external")){
-    const newUrl = location.origin + location.pathname + "?external=1";
-    try { window.location.href = newUrl; return; } catch(e){}
-  }
-})();
-</script>
-
 </head>
+<body>
 
-<body class="bg-gray-50 text-gray-800">
-
-<!-- In-App Browser Block Overlay -->
-<div id="inAppBlock" class="fixed inset-0 bg-white z-50 hidden p-8 flex items-center justify-center text-center">
-  <div>
-    <h1 class="text-2xl font-bold mb-4">⚠️ Unsupported Viewer</h1>
-    <p class="text-gray-600 mb-4">
-      This page cannot run inside Messenger or Facebook's internal browser.<br>
-      Please open it in:
-    </p>
-    <div class="font-semibold text-lg">Chrome • Safari • Default Browser</div>
-    <button id="openExternalBtn"
-      class="mt-6 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold">
-      Open in Browser
-    </button>
-  </div>
-</div>
-
-<script>
-(function(){
-  const ua = navigator.userAgent || "";
-  const inApp = /FBAN|FBAV|Instagram|Messenger/i.test(ua);
-  const params = new URLSearchParams(location.search);
-  if(inApp && params.get("external")){
-    // Still in in-app browser → block
-    document.getElementById("inAppBlock").classList.remove("hidden");
-    document.getElementById("openExternalBtn").onclick = ()=>{
-      try {
-        // Android Chrome
-        window.location.href = "intent://" + window.location.host + window.location.pathname + "#Intent;scheme=https;package=com.android.chrome;end";
-      } catch(err){
-        alert("Please open this page in Chrome using ••• menu → Open in browser.");
-      }
-    };
-  }
-})();
-</script>
-
-<!-- HEADER -->
-<header class="bg-white shadow sticky top-0 z-40">
-  <div class="max-w-6xl mx-auto flex items-center justify-between p-3">
-    <div class="flex items-center gap-3">
-      <button id="openNav" class="text-2xl text-gray-700 md:hidden">
-        <i class="fa-solid fa-bars"></i>
-      </button>
-      <div class="bg-gradient-to-tr from-blue-600 to-purple-600 p-3 text-white rounded-lg">
-        <i class="fa-solid fa-bolt"></i>
-      </div>
-      <div>
-        <div class="font-bold text-lg">QuizPro — PDF to Quiz</div>
-        <div class="text-xs text-gray-500">Professional • Responsive • Smart</div>
-      </div>
+<header class="appbar">
+    <div class="brand">
+        <div class="logo">QZ</div>
+        <div>
+            <div class="title">COMPLETE STUDY & QUIZ APP</div>
+            <small style="color:#6b7280">Interactive Learning Platform</small>
+        </div>
     </div>
-
-    <div class="flex items-center gap-3">
-      <!-- ADDED: Clear Saved Quizzes Button in Header -->
-      <button id="viewSavedHeaderBtn" class="px-3 py-2 bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition-colors text-sm font-medium">
-        <i class="fa-solid fa-bookmark mr-1"></i> Saved Quizzes
-      </button>
-      
-      <div id="coinsContainer" class="px-3 py-2 bg-white border rounded-full flex items-center gap-2 cursor-pointer hover:bg-yellow-50 transition-colors">
-        <i class="fa-solid fa-coins text-yellow-500"></i>
-        <span id="coinsTop">100</span>
-      </div>
+    <div class="tabs">
+        <button class="tab active" id="tabStudy"><i class="fa-solid fa-book-open"></i> Study</button>
+        <button class="tab" id="tabQuiz"><i class="fa-solid fa-gamepad"></i> Quiz</button>
+        <button class="tab" id="tabResults"><i class="fa-solid fa-chart-line"></i> Results</button>
     </div>
-  </div>
+    <div class="right-actions">
+        <div class="pill"><span class="dot"></span> <span>Ready</span></div>
+        <div class="pill"><i class="fa-solid fa-coins coins"></i> <span id="coinsTop">150</span></div>
+        <div class="pill"><i class="fa-solid fa-star score"></i> <span id="scoreTop">0</span></div>
+        <button class="tab" id="openShop"><i class="fa-solid fa-store"></i> Store</button>
+    </div>
 </header>
 
-<!-- Slide-Out Sidebar Navigator -->
-<aside id="sidebarNav" class="fixed top-0 left-0 bg-white shadow-lg w-64 h-full z-50 p-4 overflow-y-auto">
-  <div class="flex justify-between items-center mb-3">
-    <h3 class="font-semibold">Navigator</h3>
-    <button id="closeNav" class="text-gray-500 hover:text-gray-700"><i class="fa-solid fa-xmark"></i></button>
-  </div>
-
-  <div id="questionGrid" class="grid grid-cols-5 gap-2 mb-4"></div>
-
-  <button id="saveQuizBtn" class="w-full px-3 py-2 bg-blue-600 text-white rounded-lg mb-2 hover:bg-blue-700 transition-colors">
-    <i class="fa-solid fa-save"></i> Save Quiz
-  </button>
-  <button id="exportAllBtn" class="w-full px-3 py-2 bg-gray-100 rounded-lg mb-2 hover:bg-gray-200 transition-colors">
-    <i class="fa-solid fa-download"></i> Export Seeds
-  </button>
-  <button id="clearStorageBtn" class="w-full px-3 py-2 bg-red-100 rounded-lg hover:bg-red-200 transition-colors">
-    <i class="fa-solid fa-trash"></i> Clear Saved
-  </button>
-
-  <p class="text-xs text-gray-500 mt-4">Saved locally</p>
-</aside>
-
-<script>
-document.getElementById("openNav").onclick = ()=> {
-  document.getElementById("sidebarNav").classList.add("active");
-};
-document.getElementById("closeNav").onclick = ()=> {
-  document.getElementById("sidebarNav").classList.remove("active");
-};
-</script>
-
-<!-- MAIN WRAPPER -->
-<main class="max-w-6xl mx-auto grid md:grid-cols-[1fr_320px] md:gap-6 p-4">
-
-  <!-- LEFT COLUMN -->
-  <section>
-
-    <!-- STATS -->
-    <div class="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-4">
-      <div class="bg-white p-3 text-center rounded shadow">
-        <div class="font-bold" id="currentQ">–</div><div class="text-xs text-gray-500">Current</div>
-      </div>
-      <div class="bg-white p-3 text-center rounded shadow">
-        <div class="font-bold" id="score">0</div><div class="text-xs text-gray-500">Score</div>
-      </div>
-      <div class="bg-white p-3 text-center rounded shadow">
-        <div class="font-bold" id="correctCount">0</div><div class="text-xs text-gray-500">Correct</div>
-      </div>
-      <div class="bg-white p-3 text-center rounded shadow">
-        <div class="font-bold" id="streak">0</div><div class="text-xs text-gray-500">Streak</div>
-      </div>
-      <div class="bg-white p-3 text-center rounded shadow">
-        <div class="font-bold" id="coins">100</div><div class="text-xs text-gray-500">Coins</div>
-      </div>
-      <div class="bg-white p-3 text-center rounded shadow">
-        <div class="font-bold" id="timerVal">–</div><div class="text-xs text-gray-500">Timer</div>
-      </div>
-    </div>
-
-    <!-- UPLOAD CARD -->
-    <div id="uploadCard" class="bg-white rounded-xl shadow p-4 mb-4">
-      <h2 class="font-semibold">Upload PDF</h2>
-      <p class="text-sm text-gray-500">Drop a PDF or click Browse.</p>
-
-      <div id="dropArea" class="mt-3 border-2 border-dashed border-blue-300 rounded-xl p-6 text-center cursor-pointer hover:bg-blue-50 transition-colors">
-        <div class="text-gray-600">Drop PDF here</div>
-        <button id="browseBtn" class="mt-3 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">Browse</button>
-        <input id="pdfInput" type="file" accept=".pdf" class="hidden" />
-      </div>
-
-      <div id="fileInfo" class="hidden mt-3 p-3 rounded bg-blue-50 flex justify-between">
-        <div id="fileName" class="font-medium"></div>
-        <div id="fileSize" class="text-sm text-gray-500"></div>
-      </div>
-
-      <div id="progressWrapper" class="hidden mt-3">
-        <div class="h-2 bg-gray-200 rounded">
-          <div id="progressBar" class="h-full bg-blue-600 rounded transition-all duration-300" style="width:0%"></div>
+<main class="wrapper">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <h3>Question Navigator</h3>
+        <div class="topic-filter">
+            <div style="margin-bottom:8px;font-weight:600">Filter by Topic:</div>
+            <div class="topic-btns" id="topicFilter">
+                <!-- Topic buttons will be inserted here -->
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:8px">
+                <span style="font-size:0.85rem;color:#666"><span style="color:var(--part1-color)">■</span> Part 1</span>
+                <span style="font-size:0.85rem;color:#666"><span style="color:var(--part2-color)">■</span> Part 2</span>
+            </div>
         </div>
-        <div id="progressText" class="text-xs text-gray-500 mt-1">Processing…</div>
-      </div>
-    </div>
-
-    <!-- CONFIGURE CARD -->
-    <div id="configureCard" class="bg-white rounded-xl shadow p-4 mb-4">
-      <h3 class="font-semibold">Configure Quiz</h3>
-
-      <div class="grid sm:grid-cols-3 gap-3 mt-3">
-        <div>
-          <label class="text-sm font-medium">Questions</label>
-          <select id="numQuestions" class="mt-1 w-full border rounded p-2"></select>
+        <div class="question-grid" id="questionGrid"></div>
+        <div class="shop-section">
+            <button class="nav-btn" id="sidebarShop"><i class="fa-solid fa-cart-shopping"></i> Shop Power-ups</button>
         </div>
-        <div class="grid grid-cols-2 gap-3 mt-3">
-          <div>
-            <label class="text-sm font-medium">Per Question Timer (seconds)</label>
-            <input id="questionTimerInput" class="mt-1 w-full border p-2 rounded" value="30" />
-          </div>
-          <div>
-            <label class="text-sm font-medium">Full Quiz Timer (seconds)</label>
-            <input id="quizTimerInput" class="mt-1 w-full border p-2 rounded" value="300" />
-          </div>
-        </div>
-        <button id="applyTimers" class="mt-3 px-3 py-2 bg-gray-100 rounded hover:bg-gray-200 transition-colors">
-          Apply Timers
-        </button>
-        <div>
-          <label class="text-sm font-medium">Difficulty</label>
-          <select id="difficulty" class="mt-1 w-full border rounded p-2">
-            <option value="mixed">Mixed</option>
-            <option value="basic">Basic</option>
-            <option value="intermediate" selected>Intermediate</option>
-            <option value="advanced">Advanced</option>
-          </select>
+    </aside>
+
+    <!-- Main content -->
+    <section class="main">
+
+        <!-- Stats -->
+        <div class="stats-bar">
+            <div class="stat"><div class="val" id="currentQ">—</div><div class="lab">Current</div></div>
+            <div class="stat"><div class="val" id="score">0</div><div class="lab">Score</div></div>
+            <div class="stat"><div class="val" id="correctCount">0</div><div class="lab">Correct</div></div>
+            <div class="stat"><div class="val" id="streak">0</div><div class="lab">Streak</div></div>
+            <div class="stat"><div class="val" id="coins">150</div><div class="lab">Coins</div></div>
+            <div class="stat"><div class="val" id="timerVal">—</div><div class="lab">Timer</div></div>
         </div>
 
-        <div>
-          <label class="text-sm font-medium">Focus keywords (comma)</label>
-          <input id="focusAreas" class="mt-1 w-full border rounded p-2" placeholder="biology, taxation" />
-        </div>
-      </div>
-
-      <div class="flex gap-3 mt-4">
-        <button id="genBtn" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-md hover:opacity-90 transition-opacity">
-          Generate Quiz
-        </button>
-
-        <button id="buildStudyBtn" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors">
-          <i class="fa-solid fa-book-open mr-1"></i> Study Guide
-        </button>
-
-        <div class="ml-auto text-sm text-gray-600">
-          Seeds: <span id="seedCount">0</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- QUIZ CARD -->
-    <div id="quizCard" class="bg-white rounded-xl shadow p-4 mb-4 hidden">
-      <div class="flex justify-between">
-        <div>
-          <h3 class="text-lg font-bold" id="qTitle"></h3>
-          <div class="text-xs text-gray-500" id="qIndex"></div>
+        <!-- Study Mode -->
+        <div class="card" id="studyMode">
+            <div class="toc" id="toc"></div>
+            <!-- Chapters auto-inserted below -->
+            <div id="chapters"></div>
+            <div class="note"><strong>Note:</strong> This comprehensive app contains study materials organized for easy learning and review. Use the topic buttons above to navigate.</div>
         </div>
 
-        <div class="text-right text-xs text-gray-500">
-          <label>Timer: </label>
-          <select id="timerMode" class="border rounded p-1 text-xs">
-            <option value="none">None</option>
-            <option value="question" selected>Per Q</option>
-            <option value="quiz">Quiz</option>
-          </select>
+        <!-- Quiz Mode -->
+        <div class="card" id="quizMode" style="display:none;">
+            <div class="quiz-settings">
+                <h4>Quiz Settings</h4>
+                <div class="settings-grid">
+                    <div class="setting-item">
+                        <label for="questionCount">Questions:</label>
+                        <select id="questionCount">
+                            <option value="10">10 Questions</option>
+                            <option value="20">20 Questions</option>
+                            <option value="30">30 Questions</option>
+                            <option value="50">50 Questions</option>
+                            <option value="100" selected>100 Questions</option>
+                            <option value="all">All Questions</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <label for="topicSelect">Topics:</label>
+                        <select id="topicSelect">
+                            <option value="all" selected>All Topics</option>
+                            <option value="part1">Part 1 Only</option>
+                            <option value="part2">Part 2 Only</option>
+                            <option value="custom">Custom Selection</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <label for="difficulty">Difficulty:</label>
+                        <select id="difficulty">
+                            <option value="all" selected>All Difficulties</option>
+                            <option value="easy">Easy</option>
+                            <option value="medium">Medium</option>
+                            <option value="hard">Hard</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <button class="btn btn-primary" id="startQuiz">Start New Quiz</button>
+                    </div>
+                </div>
+            </div>
+            <div class="question-card">
+                <div class="question-header">
+                    <div class="question-title" id="qTitle">Question</div>
+                    <div class="timerbar">
+                        <button class="timeropt" data-timer="none">No Timer</button>
+                        <button class="timeropt" data-timer="quiz">Quiz: <span id="quizTimerLabel">300s</span></button>
+                        <button class="timeropt" data-timer="question">Per Q: <span id="questionTimerLabel">30s</span></button>
+                        <input type="number" id="quizTimerInput" value="300" min="30" max="3600" style="width:80px">
+                        <input type="number" id="questionTimerInput" value="30" min="5" max="300" style="width:80px">
+                        <button class="btn btn-secondary" id="applyTimers">Apply</button>
+                    </div>
+                </div>
+
+                <div class="powerups">
+                    <div class="powerup" id="pu5050"><div class="icon">50:50</div><div class="count" id="count5050">3</div></div>
+                    <div class="powerup" id="puHint"><div class="icon"><i class="fa-solid fa-lightbulb"></i></div><div class="count" id="countHint">3</div></div>
+                    <div class="powerup" id="puSkip"><div class="icon"><i class="fa-solid fa-forward"></i></div><div class="count" id="countSkip">2</div></div>
+                </div>
+
+                <div class="question-text" id="qText"></div>
+                <div class="options" id="options"></div>
+                <div class="hint" id="hint" style="display:none;"></div>
+
+                <div class="controls">
+                    <button class="btn btn-ghost" id="prevBtn"><i class="fa-solid fa-arrow-left"></i> Previous</button>
+                    <button class="btn btn-ghost" id="nextBtn">Next <i class="fa-solid fa-arrow-right"></i></button>
+                    <button class="btn btn-primary submit-btn" id="submitBtn"><i class="fa-solid fa-paper-plane"></i> Submit Quiz</button>
+                </div>
+            </div>
         </div>
-      </div>
 
-      <div class="flex gap-3 mt-3">
-        <button id="pu5050" class="px-3 py-2 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">50:50 <span id="count5050">3</span></button>
-        <button id="puHint" class="px-3 py-2 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"><i class="fa-solid fa-lightbulb"></i> <span id="countHint">3</span></button>
-        <button id="puSkip" class="px-3 py-2 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">Skip <span id="countSkip">2</span></button>
-      </div>
+        <!-- Results -->
+        <div class="card results" id="resultsView">
+            <h2>Results</h2>
+            <div id="resultsSummary"></div>
+            <div id="resultsList"></div>
+            <div style="display:flex;gap:10px;margin-top:12px;">
+                <button class="btn btn-secondary" id="retryWrong">Retry Wrong Only</button>
+                <button class="btn btn-primary" id="retryAll">Retry All</button>
+                <button class="btn btn-ghost" id="newQuiz">New Quiz</button>
+            </div>
+        </div>
 
-      <div id="qText" class="mt-4 text-lg font-semibold"></div>
-
-      <div id="options" class="grid gap-3 mt-4"></div>
-
-      <div id="hint" class="hidden mt-3 p-3 bg-yellow-50 border rounded"></div>
-
-      <div class="flex gap-3 mt-4">
-        <button id="prevBtn" class="px-3 py-2 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">Prev</button>
-        <button id="nextBtn" class="px-3 py-2 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">Next</button>
-        <button id="submitBtn" class="ml-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">Submit</button>
-      </div>
-    </div>
-
-    <!-- RESULTS CARD -->
-    <div id="resultsCard" class="bg-white rounded-xl shadow p-4 mb-4 hidden">
-      <h3 class="text-lg font-bold">Results</h3>
-      <div id="resultsSummary" class="mt-2"></div>
-      <div id="resultsList" class="mt-3 space-y-2"></div>
-
-      <div class="flex gap-3 mt-4">
-        <button id="retryWrong" class="px-3 py-2 bg-red-100 rounded-md hover:bg-red-200 transition-colors">Retry Wrong</button>
-        <button id="retryAll" class="px-3 py-2 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors">Retry All</button>
-        <button id="exportResults" class="px-3 py-2 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">Export Results</button>
-      </div>
-    </div>
-
-    <!-- SAVED CARD -->
-    <div id="savedCard" class="bg-white rounded-xl shadow p-4 mb-4 hidden">
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="text-lg font-bold">Saved Quizzes</h3>
-        <button id="backToUpload" class="px-3 py-1 bg-gray-100 rounded hover:bg-gray-200 transition-colors text-sm">
-          <i class="fa-solid fa-arrow-left mr-1"></i> Back to Upload
-        </button>
-      </div>
-      <div id="quizList" class="mt-3 space-y-3"></div>
-    </div>
-
-  </section>
-
-  <!-- RIGHT COLUMN (small controls) -->
-  <aside class="hidden md:block">
-    <div class="bg-white rounded-xl shadow p-4 sticky top-24">
-      <h4 class="font-semibold mb-2">Quick Actions</h4>
-      <button id="openFull" class="w-full mb-2 px-3 py-2 bg-gray-100 rounded hover:bg-gray-200 transition-colors">
-        <i class="fa-solid fa-expand mr-2"></i> Fullscreen
-      </button>
-      <button id="viewSavedBtn" class="w-full mb-2 px-3 py-2 bg-blue-50 rounded hover:bg-blue-100 transition-colors">
-        <i class="fa-solid fa-bookmark mr-2"></i> View Saved
-      </button>
-      <button id="viewResultsBtn" class="w-full mb-2 px-3 py-2 bg-green-50 rounded hover:bg-green-100 transition-colors">
-        <i class="fa-solid fa-chart-bar mr-2"></i> View Results
-      </button>
-      <button id="generateStudyBtn" class="w-full px-3 py-2 bg-purple-50 rounded hover:bg-purple-100 transition-colors">
-        <i class="fa-solid fa-book-open mr-2"></i> Study Guide
-      </button>
-    </div>
-  </aside>
-
+    </section>
 </main>
 
-<!-- Study modal (structured study guide) -->
-<div id="studyModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black bg-opacity-40">
-  <div class="bg-white rounded-lg max-w-4xl w-full p-4 max-h-[80vh] overflow-auto">
-    <div class="flex justify-between items-center mb-4">
-      <div>
-        <h3 class="font-semibold text-xl">📘 Study Guide - Quick Reviewer</h3>
-        <p class="text-sm text-gray-500">Structured study guide generated from your PDF</p>
-      </div>
-      <div class="flex gap-2">
-        <button id="exportStudyBtn" class="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors text-sm">
-          <i class="fa-solid fa-download mr-1"></i> Export Guide
-        </button>
-        <button id="closeStudyModal" class="px-3 py-1 bg-gray-100 rounded hover:bg-gray-200 transition-colors text-sm">Close</button>
-      </div>
+<!-- Shop Modal -->
+<div class="modal" id="shopModal">
+    <div class="modal-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+            <h2 style="margin:0;">Power-up Store</h2>
+            <button class="btn btn-ghost" id="closeShop"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <p style="margin:6px 0 0">Coins: <strong id="shopCoins">0</strong></p>
+        <div class="shop-items">
+            <div class="shop-item">
+                <h4>50:50</h4>
+                <p>Remove two wrong options.</p>
+                <button class="btn btn-primary shop-item-btn" data-powerup="5050" data-price="80">Buy (80)</button>
+            </div>
+            <div class="shop-item">
+                <h4>Hint</h4>
+                <p>Show a helpful hint.</p>
+                <button class="btn btn-primary shop-item-btn" data-powerup="hint" data-price="60">Buy (60)</button>
+            </div>
+            <div class="shop-item">
+                <h4>Skip</h4>
+                <p>Skip a tough question.</p>
+                <button class="btn btn-primary shop-item-btn" data-powerup="skip" data-price="50">Buy (50)</button>
+            </div>
+        </div>
     </div>
-    
-    <div id="studyStats" class="mb-4 p-3 bg-blue-50 rounded-lg"></div>
-    
-    <div id="studyContent" class="space-y-6"></div>
-  </div>
 </div>
 
-<!-- Shop & Save Modals (kept minimal) -->
-<div id="shopModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black bg-opacity-40">
-  <div class="bg-white rounded-lg p-4 max-w-md w-full">
-    <div class="flex justify-between items-center">
-      <h4 class="font-semibold">Store</h4>
-      <button id="closeShop" class="text-gray-500 hover:text-gray-700 transition-colors">Close</button>
-    </div>
-    <div class="mt-3 space-y-3">
-      <div class="flex justify-between items-center p-3 border rounded hover:bg-gray-50 transition-colors">
-        <div><b>50:50</b><div class="text-sm text-gray-500">Remove two wrong options</div></div>
-        <button class="shopBuy px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors" data-power="5050" data-price="80">Buy 80</button>
-      </div>
-      <div class="flex justify-between items-center p-3 border rounded hover:bg-gray-50 transition-colors">
-        <div><b>Hint</b><div class="text-sm text-gray-500">Reveal a hint</div></div>
-        <button class="shopBuy px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors" data-power="hint" data-price="60">Buy 60</button>
-      </div>
-      <div class="flex justify-between items-center p-3 border rounded hover:bg-gray-50 transition-colors">
-        <div><b>Skip</b><div class="text-sm text-gray-500">Skip a question</div></div>
-        <button class="shopBuy px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors" data-power="skip" data-price="50">Buy 50</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div id="saveModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black bg-opacity-40">
-  <div class="bg-white rounded-lg p-4 max-w-md w-full">
-    <div class="flex justify-between items-center">
-      <h4 class="font-semibold">Save Quiz</h4>
-      <button id="closeSave" class="text-gray-500 hover:text-gray-700 transition-colors">Close</button>
-    </div>
-
-    <div class="mt-3 space-y-2">
-      <label class="text-sm font-medium">Title</label>
-      <input id="quizTitle" class="w-full border rounded p-2" placeholder="Quiz Title" />
-      <label class="text-sm font-medium">Category</label>
-      <select id="quizCategory" class="w-full border rounded p-2">
-        <option>General</option><option>Education</option><option>Science</option><option>Other</option>
-      </select>
-
-      <div class="flex gap-2 mt-3">
-        <button id="saveToLocal" class="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">Save</button>
-        <button id="cancelSave" class="px-3 py-2 bg-gray-100 rounded hover:bg-gray-200 transition-colors">Cancel</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Toast -->
-<div id="toast" class="fixed top-6 right-6 hidden bg-white rounded shadow px-4 py-2 z-50 shadow-lg"></div>
-
-<!-- Audio -->
+<!-- Sounds -->
 <audio id="correctSound" src="https://www.soundjay.com/buttons/sounds/button-1.mp3" preload="auto"></audio>
 <audio id="incorrectSound" src="https://www.soundjay.com/buttons/sounds/button-10.mp3" preload="auto"></audio>
+<audio id="clickSound" src="https://www.soundjay.com/buttons/sounds/button-3.mp3" preload="auto"></audio>
+<audio id="powerupSound" src="https://www.soundjay.com/buttons/sounds/button-4.mp3" preload="auto"></audio>
 <audio id="coinSound" src="https://www.soundjay.com/buttons/sounds/button-7.mp3" preload="auto"></audio>
-<audio id="powerSound" src="https://www.soundjay.com/buttons/sounds/button-4.mp3" preload="auto"></audio>
+<audio id="winSound" src="https://www.soundjay.com/misc/sounds/success-sound-2.mp3" preload="auto"></audio>
+
+<div class="confetti-container" id="confetti"></div>
 
 <script>
-/* ---------------------------
-   Helpers & State
---------------------------- */
-const $ = s => document.querySelector(s);
-const $$ = s => document.querySelectorAll(s);
-const el = (t, c, txt) => { 
-  const e = document.createElement(t); 
-  if(c) e.className = c; 
-  if(txt!==undefined) e.textContent = txt; 
-  return e; 
-};
+// ===========================
+// CONTENT LOADER
+// ===========================
+let studyChapters = [];
+let completeQuizBank = [];
 
-function toast(msg, ms=1600){
-  const t = $('#toast'); 
-  t.textContent = msg; 
-  t.classList.remove('hidden');
-  setTimeout(()=> t.classList.add('hidden'), ms);
-}
-
-function playSound(sel){ 
-  try{ 
-    const a = $(sel); 
-    if(a){ 
-      a.currentTime=0; 
-      a.play().catch(()=>{}); 
-    } 
-  }catch(e){} 
-}
-
-function shuffle(a){ 
-  for(let i=a.length-1;i>0;i--){ 
-    const j=Math.floor(Math.random()*(i+1)); 
-    [a[i],a[j]]=[a[j],a[i]];
-  } 
-  return a; 
-}
-
-function escapeReg(s){ 
-  return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); 
-}
-
-/* ---------------------------
-   STRUCTURED STUDY GUIDE GENERATOR
-   (Like your abnormal psychology example)
---------------------------- */
-function generateStructuredStudyGuide(text) {
-  console.log("Generating structured study guide...");
-  
-  // Clean and normalize text
-  const cleanText = text
-    .replace(/\s+/g, ' ')
-    .replace(/[•·]/g, '•')
-    .trim();
-  
-  // Extract the document title (first meaningful line)
-  const firstLine = cleanText.split('\n')[0] || '';
-  const docTitle = extractDocumentTitle(firstLine, cleanText);
-  
-  // Extract sections and content
-  const sections = extractDocumentSections(cleanText);
-  const keyTerms = extractKeyTermsWithDefinitions(cleanText);
-  const importantPoints = extractImportantPoints(cleanText);
-  const contactInfo = extractContactInformation(cleanText);
-  
-  // Structure the study guide
-  const studyGuide = {
-    title: docTitle,
-    sections: sections,
-    keyTerms: keyTerms,
-    importantPoints: importantPoints,
-    contactInfo: contactInfo,
-    memoryTips: generateMemoryTips(keyTerms, importantPoints)
-  };
-  
-  return studyGuide;
-}
-
-function extractDocumentTitle(firstLine, fullText) {
-  // Look for title patterns
-  const titlePatterns = [
-    /^([A-Z][A-Za-z0-9\s\-&():]{5,80})$/,
-    /^(?:Chapter|Unit|Module|Part)\s+\d+[:\.]?\s*([A-Z][A-Za-z0-9\s\-&():]{5,80})/i,
-    /^[A-Z\s]{10,}$/ // All caps title
-  ];
-  
-  for(const pattern of titlePatterns) {
-    const match = firstLine.match(pattern);
-    if(match) {
-      return match[1] || match[0];
-    }
-  }
-  
-  // Fallback: Use first sentence as title
-  const firstSentence = fullText.split(/[.!?]/)[0];
-  if(firstSentence && firstSentence.length > 10 && firstSentence.length < 100) {
-    return firstSentence;
-  }
-  
-  return "Study Guide";
-}
-
-function extractDocumentSections(text) {
-  const sections = [];
-  const lines = text.split('\n');
-  
-  let currentSection = null;
-  let currentContent = [];
-  
-  // Common section headers
-  const sectionPatterns = [
-    /^(?:Part|Chapter|Unit|Module)\s+\d+[:\.]?\s*([A-Z][A-Za-z0-9\s\-&():]+)/i,
-    /^([A-Z][A-Za-z0-9\s\-&():]{3,50}):?$/,
-    /^\d+\.\s+([A-Z][A-Za-z0-9\s\-&():]{3,50})/,
-    /^[A-Z\s]{5,}$/ // All caps section
-  ];
-  
-  for(const line of lines) {
-    const trimmed = line.trim();
+// Load content from external file
+function loadContent() {
+    // For GitHub Pages or local testing, you can:
+    // 1. Use fetch to load a JSON file
+    // 2. Include the content directly in a JavaScript file
+    // 3. Use a separate .js file with the content
     
-    // Check if this is a section header
-    let isSection = false;
-    let sectionTitle = '';
+    // For now, we'll create an empty structure
+    studyChapters = [];
+    completeQuizBank = [];
     
-    for(const pattern of sectionPatterns) {
-      const match = trimmed.match(pattern);
-      if(match) {
-        isSection = true;
-        sectionTitle = match[1] || match[0];
-        break;
-      }
-    }
+    // After loading content, initialize the app
+    init();
+}
+
+// Fallback content if external file fails to load
+function loadFallbackContent() {
+    // Minimal content to prevent errors
+    studyChapters = [{
+        id: 'intro',
+        title: 'Introduction',
+        content: '<h2>WELCOME TO THE STUDY & QUIZ APP</h2><p>Content loading from external file...</p>'
+    }];
     
-    // Also check for common section keywords
-    if(!isSection && trimmed.length < 80) {
-      const lowerLine = trimmed.toLowerCase();
-      if(lowerLine.includes('introduction') || 
-         lowerLine.includes('background') ||
-         lowerLine.includes('definition') ||
-         lowerLine.includes('overview') ||
-         lowerLine.includes('conclusion') ||
-         lowerLine.includes('summary') ||
-         lowerLine.includes('reference')) {
-        isSection = true;
-        sectionTitle = trimmed;
-      }
-    }
-    
-    if(isSection) {
-      // Save previous section if exists
-      if(currentSection && currentContent.length > 0) {
-        sections.push({
-          title: currentSection,
-          content: currentContent.join(' '),
-          bulletPoints: extractBulletPoints(currentContent.join(' '))
-        });
-      }
-      
-      // Start new section
-      currentSection = sectionTitle;
-      currentContent = [];
-    } else if(currentSection && trimmed.length > 20) {
-      // Add content to current section
-      currentContent.push(trimmed);
-    }
-  }
-  
-  // Add the last section
-  if(currentSection && currentContent.length > 0) {
-    sections.push({
-      title: currentSection,
-      content: currentContent.join(' '),
-      bulletPoints: extractBulletPoints(currentContent.join(' '))
-    });
-  }
-  
-  // If no sections found, create them from paragraphs
-  if(sections.length === 0) {
-    return createSectionsFromContent(text);
-  }
-  
-  return sections;
+    completeQuizBank = [{
+        topic: 1,
+        part: 1,
+        q: "Sample question?",
+        options: ["Option A", "Option B", "Option C", "Option D"],
+        ans: 0,
+        hint: "Sample hint",
+        exp: "Sample explanation"
+    }];
 }
 
-function createSectionsFromContent(text) {
-  const sections = [];
-  const paragraphs = text.split(/\n\n+/);
-  
-  let sectionCounter = 1;
-  const commonTopics = ['Definition', 'Types', 'Causes', 'Symptoms', 'Treatment', 'Examples', 'Importance'];
-  
-  paragraphs.forEach((para, index) => {
-    if(para.length > 100) {
-      const sectionTitle = index < commonTopics.length ? 
-        `Part ${sectionCounter}: ${commonTopics[index]}` : 
-        `Part ${sectionCounter}: Key Concepts`;
-      
-      sections.push({
-        title: sectionTitle,
-        content: para,
-        bulletPoints: extractBulletPoints(para)
-      });
-      sectionCounter++;
-    }
-  });
-  
-  return sections.slice(0, 8); // Limit to 8 sections
-}
-
-function extractBulletPoints(text) {
-  const bulletPoints = [];
-  
-  // Look for bullet points, numbered lists, or key points
-  const patterns = [
-    /(?:•|\*|\-)\s*([^•\n]{10,200})/g,
-    /\d+\.\s*([^\d\n]{10,200})/g,
-    /○\s*([^○\n]{10,200})/g
-  ];
-  
-  for(const pattern of patterns) {
-    const matches = [...text.matchAll(pattern)];
-    matches.forEach(match => {
-      if(match[1].length > 10) {
-        bulletPoints.push(match[1].trim());
-      }
-    });
-  }
-  
-  // If no bullet points found, extract key sentences
-  if(bulletPoints.length === 0) {
-    const sentences = text.split(/[.!?]/);
-    sentences.forEach(sentence => {
-      if(sentence.length > 30 && sentence.length < 150) {
-        // Check if it looks like an important point
-        if(/^(?:The|A|An|This|That|These|Those|It|They)\s+[a-z]/i.test(sentence.trim()) ||
-           /(?:important|key|main|primary|essential|critical|major)\s+[a-z]+/i.test(sentence)) {
-          bulletPoints.push(sentence.trim());
-        }
-      }
-    });
-  }
-  
-  return bulletPoints.slice(0, 10); // Limit to 10 bullet points
-}
-
-function extractKeyTermsWithDefinitions(text) {
-  const terms = [];
-  
-  // Look for term-definition patterns
-  const patterns = [
-    /([A-Z][A-Za-z0-9\s\-&()]+)\s*(?:\([A-Z]+\))?\s*(?:is|are|means|refers to|defined as)\s+([^.!?]{10,200})/gi,
-    /([A-Z][A-Za-z0-9\s\-&()]+):\s+([^.!?\n]{10,200})/g,
-    /([A-Z][A-Za-z0-9\s\-&()]+)\s*—\s*([^.!?\n]{10,200})/g
-  ];
-  
-  for(const pattern of patterns) {
-    const matches = [...text.matchAll(pattern)];
-    matches.forEach(match => {
-      const term = match[1].trim();
-      let definition = match[2].trim();
-      
-      // Clean up definition
-      definition = definition
-        .replace(/^(?:a|an|the)\s+/i, '')
-        .replace(/\.$/, '');
-      
-      if(term.length > 2 && definition.length > 10) {
-        // Skip if too common
-        if(!/^(The|This|That|These|Those|It|They)/i.test(term)) {
-          terms.push({
-            term: term,
-            definition: definition.charAt(0).toUpperCase() + definition.slice(1),
-            abbreviation: extractAbbreviation(term)
-          });
-        }
-      }
-    });
-  }
-  
-  // Remove duplicates
-  const uniqueTerms = [];
-  const seen = new Set();
-  
-  terms.forEach(term => {
-    const key = term.term.toLowerCase();
-    if(!seen.has(key)) {
-      seen.add(key);
-      uniqueTerms.push(term);
-    }
-  });
-  
-  return uniqueTerms.slice(0, 20); // Limit to 20 terms
-}
-
-function extractAbbreviation(term) {
-  const match = term.match(/\(([A-Z]+)\)/);
-  return match ? match[1] : null;
-}
-
-function extractImportantPoints(text) {
-  const points = [];
-  const sentences = text.split(/[.!?]/);
-  
-  sentences.forEach(sentence => {
-    const trimmed = sentence.trim();
-    
-    // Look for important indicators
-    if(trimmed.length > 30 && trimmed.length < 200) {
-      const hasImportantIndicator = 
-        /(?:important|key|critical|essential|major|primary|significant|notable)\s+[a-z]+/i.test(trimmed) ||
-        /(?:note that|remember that|keep in mind|it is crucial|it is vital)/i.test(trimmed) ||
-        /\d+%\s+of/i.test(trimmed) || // Statistics
-        /(?:always|never|must|should|cannot)/i.test(trimmed); // Imperatives
-      
-      if(hasImportantIndicator) {
-        points.push(trimmed);
-      }
-    }
-  });
-  
-  return points.slice(0, 15); // Limit to 15 points
-}
-
-function extractContactInformation(text) {
-  const contacts = [];
-  
-  // Look for phone numbers
-  const phonePatterns = [
-    /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g,
-    /\b\d{4}[-.]?\d{3}[-.]?\d{4}\b/g,
-    /(?:phone|tel|contact|hotline|helpline)[:\s]*([+\d\s\-()]{8,20})/gi
-  ];
-  
-  for(const pattern of phonePatterns) {
-    const matches = [...text.matchAll(pattern)];
-    matches.forEach(match => {
-      const contact = match[1] || match[0];
-      if(contact.length > 7) {
-        contacts.push({
-          type: 'phone',
-          value: contact.trim(),
-          label: 'Contact Number'
-        });
-      }
-    });
-  }
-  
-  // Look for email addresses
-  const emailMatches = [...text.matchAll(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g)];
-  emailMatches.forEach(match => {
-    contacts.push({
-      type: 'email',
-      value: match[0],
-      label: 'Email Address'
-    });
-  });
-  
-  // Look for websites/URLs
-  const urlMatches = [...text.matchAll(/\b(?:https?:\/\/)?(?:www\.)?[a-z0-9.-]+\.[a-z]{2,}(?:\/[^\s]*)?\b/gi)];
-  urlMatches.forEach(match => {
-    contacts.push({
-      type: 'url',
-      value: match[0],
-      label: 'Website'
-    });
-  });
-  
-  return contacts.slice(0, 3); // Limit to 3 contacts
-}
-
-function generateMemoryTips(keyTerms, importantPoints) {
-  const tips = [];
-  
-  // Create memory tips for key terms
-  keyTerms.forEach((term, index) => {
-    if(index < 5) { // Only first 5 terms
-      const tip = createMemoryTip(term.term, term.definition);
-      if(tip) tips.push(tip);
-    }
-  });
-  
-  // Add some general memory tips
-  const generalTips = [
-    "Use acronyms to remember lists",
-    "Create visual associations for complex terms",
-    "Practice active recall by testing yourself",
-    "Connect new information to what you already know",
-    "Break large topics into smaller chunks",
-    "Review material within 24 hours for better retention"
-  ];
-  
-  // Add 2-3 general tips
-  generalTips.slice(0, 3).forEach(tip => {
-    tips.push(tip);
-  });
-  
-  return tips;
-}
-
-function createMemoryTip(term, definition) {
-  const termWords = term.split(' ');
-  
-  // Create acronym for multi-word terms
-  if(termWords.length > 1) {
-    const acronym = termWords.map(word => word[0]).join('');
-    if(acronym.length > 1) {
-      return `"${acronym}" = ${term}`;
-    }
-  }
-  
-  // Create simple association
-  if(definition.length < 100) {
-    return `${term}: ${definition.split(' ').slice(0, 10).join(' ')}...`;
-  }
-  
-  return null;
-}
-
-/* ---------------------------
-   Initialize App State
---------------------------- */
-window.App = {
-  pdfText: '',
-  seeds: [],
-  questions: [],
+// ===========================
+// STATE
+// ===========================
+const Game = {
+  // Elements
+  els:{},
+  // Data (will be populated from content)
+  chapters: studyChapters,
+  questions: completeQuizBank,
+  currentQuestions: [],
   userAnswers: {},
   skipped: new Set(),
   currentIndex: 0,
   score: 0,
   correctCount: 0,
   streak: 0,
-  coins: 100,
-  powerups: { '5050': 3, hint: 3, skip: 2 },
-  timers: { 
-    mode: 'question', 
-    quiz: 300, 
-    question: 30, 
-    interval: null, 
-    quizRemaining: null, 
-    questionRemaining: null 
-  },
-  currentStudyGuide: null
+  coins: 150,
+  awardedMilestones: new Set(),
+  awardedStreaks: new Set(),
+  timers: {mode:'none', quiz:300, question:30, handle:null, remaining:null},
+  powerups: { '5050':3, hint:3, skip:2 },
+  currentFilter: 'all',
+  quizSettings: {
+    questionCount: 100,
+    topicSelection: 'all',
+    difficulty: 'all'
+  }
 };
 
-/* ---------------------------
-   PDF Upload & Processing
---------------------------- */
-$('#browseBtn').addEventListener('click', () => $('#pdfInput').click());
-
-$('#pdfInput').addEventListener('change', e => { 
-  if(e.target.files[0]) loadPDF(e.target.files[0]); 
-});
-
-// Drag and drop handlers
-['dragenter','dragover'].forEach(ev => {
-  $('#dropArea').addEventListener(ev, e => {
-    e.preventDefault(); 
-    $('#dropArea').classList.add('bg-blue-100', 'border-blue-400');
-  });
-});
-
-['dragleave','drop'].forEach(ev => {
-  $('#dropArea').addEventListener(ev, e => {
-    e.preventDefault(); 
-    $('#dropArea').classList.remove('bg-blue-100', 'border-blue-400');
-  });
-});
-
-$('#dropArea').addEventListener('drop', e => {
-  e.preventDefault(); 
-  const file = e.dataTransfer.files && e.dataTransfer.files[0];
-  if(file && file.type === 'application/pdf') {
-    loadPDF(file);
-  } else {
-    toast('Please drop a PDF file');
+// ===========================
+// UTIL & UI
+// ===========================
+function $(q){return document.querySelector(q)}
+function create(el,cls,text){const e=document.createElement(el); if(cls) e.className=cls; if(text) e.textContent=text; return e;}
+function playSound(id){ const a=$(id); if(a){ a.currentTime=0; a.play().catch(()=>{}); } }
+function confettiBurst(){
+  const cont = $('#confetti');
+  const colors = ['#4361ee','#3a0ca3','#4cc9f0','#f72585','#fca311','#2ec4b6','#8b5cf6','#7c3aed','#10b981','#ef4444'];
+  for(let i=0;i<100;i++){
+    const d = create('div','confetti');
+    d.style.left = Math.random()*100 + '%';
+    d.style.top = (Math.random()*-40) + 'px';
+    d.style.background = colors[Math.floor(Math.random()*colors.length)];
+    d.style.animationDelay = (Math.random()*1.5)+'s';
+    d.style.transform = `rotate(${Math.random()*360}deg)`;
+    cont.appendChild(d);
   }
-});
-
-async function loadPDF(file){
-  $('#fileInfo').classList.remove('hidden');
-  $('#fileName').textContent = file.name;
-  $('#fileSize').textContent = Math.round(file.size/1024) + ' KB';
-  $('#progressWrapper').classList.remove('hidden');
-  $('#progressBar').style.width = '5%';
-  $('#progressText').textContent = 'Loading PDF...';
-
-  try{
-    const buffer = await file.arrayBuffer();
-    const loadingTask = pdfjsLib.getDocument({data: buffer});
-    const pdf = await loadingTask.promise;
-    let allText = '';
-    
-    for(let i = 1; i <= pdf.numPages; i++){
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      const pageText = content.items.map(item => item.str).join(' ');
-      allText += pageText + '\n\n';
-      
-      // Update progress
-      const progress = Math.round((i / pdf.numPages) * 95) + 5;
-      $('#progressBar').style.width = progress + '%';
-      $('#progressText').textContent = `Extracting page ${i} of ${pdf.numPages}`;
-      
-      // Small delay to show progress
-      await new Promise(resolve => setTimeout(resolve, 10));
-    }
-    
-    App.pdfText = allText;
-    $('#progressBar').style.width = '100%';
-    $('#progressText').textContent = 'Extraction complete!';
-    
-    setTimeout(() => {
-      $('#progressWrapper').classList.add('hidden');
-      toast('PDF successfully loaded and processed');
-      buildSeedsFromText();
-    }, 500);
-    
-  } catch(err){
-    console.error('PDF loading error:', err);
-    $('#progressWrapper').classList.add('hidden');
-    toast('Failed to read PDF. Please try another file.');
-  }
+  setTimeout(()=>cont.innerHTML='', 3500);
 }
 
-/* ---------------------------
-   Quiz Generation Functions
---------------------------- */
-function buildSeedsFromText(){
-  if(!App.pdfText || App.pdfText.trim().length < 50){ 
-    toast('No sufficient text found in PDF'); 
-    return; 
-  }
-  
-  const sentences = App.pdfText
-    .replace(/\s+/g, ' ')
-    .split(/(?<=[.!?])\s+/)
-    .map(s => s.trim())
-    .filter(s => s.length > 30 && s.length < 300);
-  
-  const scoredSentences = sentences.map(sentence => {
-    let score = 0;
-    
-    if (/^(?:[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:is|are|means|defined as|refers to)/i.test(sentence)) score += 3;
-    if (sentence.includes(':')) score += 2;
-    if (/(?:important|key|critical|essential|primary|major)\s+[a-z]+/i.test(sentence)) score += 2;
-    if (/\d+/.test(sentence)) score += 1;
-    if (sentence.length > 100) score += 1;
-    
-    return { sentence, score };
-  });
-  
-  scoredSentences.sort((a, b) => b.score - a.score);
-  const topSeeds = scoredSentences.slice(0, 100).map(s => s.sentence);
-  
-  const seen = new Set();
-  const uniqueSeeds = [];
-  
-  for(const seed of topSeeds) {
-    const key = seed.toLowerCase()
-      .replace(/[^a-z0-9 ]+/g, '')
-      .substring(0, 100);
-    
-    if(!seen.has(key) && uniqueSeeds.length < 50) {
-      seen.add(key);
-      uniqueSeeds.push(seed);
-    }
-  }
-  
-  App.seeds = uniqueSeeds;
-  $('#seedCount').textContent = App.seeds.length;
-  rebuildNumDropdown(App.seeds.length);
-  
-  if(App.seeds.length === 0) {
-    toast('Could not extract meaningful content from PDF');
-  } else {
-    toast(`Extracted ${App.seeds.length} question seeds`);
-  }
-}
-
-function rebuildNumDropdown(max){
-  const sel = $('#numQuestions');
-  sel.innerHTML = '';
-  
-  max = Math.max(1, Math.min(100, Math.floor(max)));
-  const limit = Math.min(50, max);
-  
-  for(let i = 1; i <= limit; i++){
-    const o = document.createElement('option'); 
-    o.value = i; 
-    o.textContent = i;
-    if(i === Math.min(10, limit)) o.selected = true;
-    sel.appendChild(o);
-  }
-}
-
-/* ---------------------------
-   Quiz Management
---------------------------- */
-$('#genBtn').addEventListener('click', () => {
-  if(!App.seeds || App.seeds.length === 0){
-    toast('Please upload a PDF first');
-    return;
-  }
-  
-  const desired = parseInt($('#numQuestions').value) || 10;
-  const focus = ($('#focusAreas').value || '').split(',').map(s => s.trim()).filter(Boolean);
-  const difficulty = $('#difficulty').value || 'mixed';
-  
-  const questions = generateQuestions(desired, focus, difficulty);
-  
-  if(!questions || questions.length === 0){
-    toast('Could not generate questions. Try different focus keywords.');
-    return;
-  }
-  
-  startQuizWith(questions);
-});
-
-function generateQuestions(requested, focusArr, difficulty){
-  requested = Math.min(requested, App.seeds.length);
-  const out = [];
-  
-  for(let i = 0; i < Math.min(requested, App.seeds.length); i++){
-    const seed = App.seeds[i];
-    const keyword = extractKeywordFromSentence(seed);
-    
-    if(keyword && keyword.length > 3) {
-      const question = createClozeQuestion(seed, keyword);
-      const distractors = generateDistractors(keyword, seed);
-      const options = shuffle([keyword, ...distractors.slice(0, 3)]);
-      const answerIndex = options.indexOf(keyword);
-      
-      if(answerIndex !== -1) {
-        out.push({
-          question: question,
-          options: options,
-          ans: answerIndex,
-          hint: `The missing term relates to: ${keyword}`,
-          context: seed,
-          difficulty: difficulty
-        });
-      }
-    }
-  }
-  
-  return out.slice(0, requested);
-}
-
-function extractKeywordFromSentence(sentence){
-  const words = sentence.split(/\s+/)
-    .map(w => w.replace(/[^a-zA-Z\-']+/g, ''))
-    .filter(w => w.length > 3);
-  
-  if(words.length === 0) return null;
-  
-  const capitalized = words.filter(w => /^[A-Z]/.test(w));
-  if(capitalized.length > 0) {
-    return capitalized[0];
-  }
-  
-  return words.reduce((longest, current) => 
-    current.length > longest.length ? current : longest
-  );
-}
-
-function createClozeQuestion(sentence, keyword){
-  const regex = new RegExp(`\\b${escapeReg(keyword)}\\b`, 'gi');
-  return sentence.replace(regex, '__________');
-}
-
-function generateDistractors(keyword, sentence){
-  const distractors = new Set();
-  const words = sentence.split(/\s+/)
-    .map(w => w.replace(/[^a-zA-Z\-']+/g, ''))
-    .filter(w => w.length > 3 && w.toLowerCase() !== keyword.toLowerCase());
-  
-  words.forEach(w => {
-    if(distractors.size < 3) {
-      distractors.add(w);
-    }
-  });
-  
-  const generic = ['Different approach', 'Alternative method', 'Similar concept'];
-  while(distractors.size < 3) {
-    distractors.add(generic[distractors.size]);
-  }
-  
-  return Array.from(distractors);
-}
-
-function startQuizWith(questions){
-  App.questions = [...questions];
-  App.userAnswers = {};
-  App.skipped = new Set();
-  App.currentIndex = 0;
-  App.score = 0;
-  App.correctCount = 0;
-  App.streak = 0;
-  App.powerups = { '5050': 3, hint: 3, skip: 2 };
-  
-  $('#quizCard').classList.remove('hidden');
-  $('#resultsCard').classList.add('hidden');
-  $('#savedCard').classList.add('hidden');
-  $('#uploadCard').classList.add('hidden');
-  $('#configureCard').classList.add('hidden');
-  
-  buildNavigatorUI();
-  loadQuestion(0);
-  startTimers();
-  updatePowerupUI();
-  
-  toast(`Quiz started with ${questions.length} questions`);
-}
-
-/* ---------------------------
-   Quiz Navigation & Display
---------------------------- */
-function buildNavigatorUI(){
-  const grid = $('#questionGrid');
-  grid.innerHTML = '';
-  
-  App.questions.forEach((question, index) => {
-    const button = document.createElement('button');
-    button.className = 'p-2 rounded text-sm transition-colors';
-    button.textContent = String(index + 1);
-    button.addEventListener('click', () => {
-      loadQuestion(index);
-      $('#sidebarNav').classList.remove('active');
+// ===========================
+// STUDY MODE BUILD
+// ===========================
+function buildStudy(){
+  const toc = $('#toc');
+  const container = $('#chapters');
+  toc.innerHTML = '';
+  container.innerHTML = '';
+  Game.chapters.forEach((ch,idx)=>{
+    const b = create('button', '', ch.title);
+    b.classList.add(ch.part === 1 ? 'part1' : 'part2');
+    b.addEventListener('click', ()=>{
+      document.querySelectorAll('.chapter').forEach(c=>c.classList.remove('active'));
+      document.getElementById(`chapter-${ch.id}`).classList.add('active');
     });
-    grid.appendChild(button);
+    toc.appendChild(b);
+
+    const div = create('div','chapter'+(idx===0?' active':'')); div.id=`chapter-${ch.id}`;
+    div.innerHTML = ch.content;
+    container.appendChild(div);
   });
-  
-  refreshNavigator();
 }
 
-function refreshNavigator(){
-  const buttons = $('#questionGrid').children;
+// ===========================
+// TOPIC FILTER
+// ===========================
+function buildTopicFilter(){
+  const filterDiv = $('#topicFilter');
+  filterDiv.innerHTML = '';
   
-  Array.from(buttons).forEach((button, index) => {
-    button.className = 'p-2 rounded text-sm transition-colors';
-    
-    if(index === App.currentIndex){
-      button.classList.add('ring-2', 'ring-blue-500', 'font-bold');
-    }
-    
-    if(App.userAnswers[index] === undefined){
-      button.classList.add('bg-gray-100', 'hover:bg-gray-200');
+  // Add "All Topics" button
+  const allBtn = create('button', 'topic-btn active', 'All Topics');
+  allBtn.dataset.topic = 'all';
+  allBtn.addEventListener('click', () => {
+    document.querySelectorAll('.topic-btn').forEach(b => b.classList.remove('active'));
+    allBtn.classList.add('active');
+    Game.currentFilter = 'all';
+    refreshNavigatorStates();
+  });
+  filterDiv.appendChild(allBtn);
+  
+  // Add topic buttons for each chapter (excluding intro)
+  Game.chapters.filter(ch => ch.id !== 'intro').forEach(ch => {
+    const btn = create('button', 'topic-btn', `Topic ${ch.id.replace('topic', '')}: ${ch.title}`);
+    btn.dataset.topic = ch.id;
+    if(ch.part === 1) {
+      btn.style.borderLeft = '3px solid var(--part1-color)';
     } else {
-      const question = App.questions[index];
-      const chosen = App.userAnswers[index];
-      
-      if(chosen === question.ans){
-        button.classList.add('bg-green-200', 'hover:bg-green-300');
-      } else {
-        button.classList.add('bg-red-200', 'hover:bg-red-300');
-      }
+      btn.style.borderLeft = '3px solid var(--part2-color)';
     }
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.topic-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      Game.currentFilter = ch.id;
+      refreshNavigatorStates();
+      // If in study mode, navigate to that chapter
+      if($('#studyMode').style.display !== 'none') {
+        document.querySelectorAll('.chapter').forEach(c=>c.classList.remove('active'));
+        document.getElementById(`chapter-${ch.id}`).classList.add('active');
+      }
+    });
+    filterDiv.appendChild(btn);
+  });
+}
+
+// ===========================
+// QUIZ BUILD
+// ===========================
+function buildNavigator(){
+  const grid = $('#questionGrid'); grid.innerHTML='';
+  Game.currentQuestions.forEach((q,i)=>{
+    const btn = create('button','qbtn', String(i+1));
+    btn.classList.add(q.part === 1 ? 'part1' : 'part2');
+    btn.addEventListener('click',()=>loadQuestion(i));
+    grid.appendChild(btn);
+  });
+  refreshNavigatorStates();
+}
+
+function refreshNavigatorStates(){
+  const grid = $('#questionGrid');
+  [...grid.children].forEach((btn,i)=>{
+    // Highlight based on filter
+    const q = Game.currentQuestions[i];
+    const show = Game.currentFilter === 'all' || 
+                (Game.currentFilter === 'part1' && q.part === 1) ||
+                (Game.currentFilter === 'part2' && q.part === 2) ||
+                (Game.currentFilter === `topic${q.topic}`) ||
+                (Game.currentFilter === `topic${q.topic}`);
     
-    if(App.skipped.has(index)){
-      button.classList.add('opacity-50');
+    btn.style.display = show ? 'block' : 'none';
+    btn.classList.toggle('active', i===Game.currentIndex && show);
+    
+    if(Game.userAnswers[i] !== undefined){
+      const correct = Game.currentQuestions[i].ans === Game.userAnswers[i];
+      btn.classList.toggle('correct', correct);
+      btn.classList.toggle('wrong', !correct);
     }
   });
 }
 
-function loadQuestion(index){
-  if(index < 0 || index >= App.questions.length) return;
-  
-  App.currentIndex = index;
-  const question = App.questions[index];
-  
-  $('#qTitle').textContent = `Question ${index + 1}`;
-  $('#qIndex').textContent = `${index + 1} of ${App.questions.length}`;
-  $('#qText').textContent = question.question;
-  
-  const optionsContainer = $('#options');
-  optionsContainer.innerHTML = '';
-  
-  question.options.forEach((option, optionIndex) => {
-    const optionElement = document.createElement('div');
-    optionElement.className = 'p-3 border rounded cursor-pointer bg-white hover:bg-gray-50 transition-colors';
-    optionElement.innerHTML = `<strong class="mr-2">${String.fromCharCode(65 + optionIndex)}.</strong> ${option}`;
-    optionElement.addEventListener('click', () => selectAnswer(optionIndex));
-    optionsContainer.appendChild(optionElement);
+function setPowerupCounts(){
+  $('#count5050').textContent = Game.powerups['5050'];
+  $('#countHint').textContent  = Game.powerups.hint;
+  $('#countSkip').textContent  = Game.powerups.skip;
+}
+
+function updateStats(){
+  $('#currentQ').textContent = Game.currentIndex+1;
+  $('#score').textContent = Game.score;
+  $('#scoreTop').textContent = Game.score;
+  $('#correctCount').textContent = Game.correctCount;
+  $('#streak').textContent = Game.streak;
+  $('#coins').textContent = Game.coins;
+  $('#coinsTop').textContent = Game.coins;
+
+  // milestone coins: +100 coins every time score crosses a 500 multiple
+  const milestone = Math.floor(Game.score / 500);
+  for(let m=1;m<=milestone;m++){
+    if(!Game.awardedMilestones.has(m)){
+      Game.awardedMilestones.add(m);
+      Game.coins += 100;
+      $('#coins').textContent = Game.coins;
+      $('#coinsTop').textContent = Game.coins;
+      playSound('#coinSound');
+      confettiBurst();
+    }
+  }
+}
+
+function loadQuestion(i){
+  Game.currentIndex = i;
+  const q = Game.currentQuestions[i];
+  $('#qTitle').textContent = `Question ${i+1} of ${Game.currentQuestions.length} (Topic ${q.topic})`;
+  $('#qText').textContent = q.q;
+  const opts = $('#options'); opts.innerHTML='';
+
+  q._indices = [0,1,2,3];
+  q.options.forEach((text,idx)=>{
+    const opt = create('div','option');
+    const letter = create('div','letter', String.fromCharCode(65+idx));
+    const span = create('div','', text);
+    opt.appendChild(letter); opt.appendChild(span);
+    opt.addEventListener('click',()=>selectAnswer(idx));
+    opts.appendChild(opt);
   });
-  
-  $('#hint').classList.add('hidden');
-  
-  if(App.userAnswers[index] !== undefined){
-    showAnswerState(App.userAnswers[index]);
+
+  $('#hint').style.display='none';
+  if(Game.userAnswers[i] !== undefined){
+    showAnswerState(Game.userAnswers[i], false);
   }
-  
-  refreshNavigator();
-  updatePowerupUI();
-  
-  if(App.timers.mode === 'question'){
-    resetQuestionTimer();
-  }
+  refreshNavigatorStates();
+  updateStats();
 }
 
 function selectAnswer(choice){
-  const currentIndex = App.currentIndex;
-  
-  if(App.userAnswers[currentIndex] !== undefined) return;
-  
-  App.userAnswers[currentIndex] = choice;
-  const question = App.questions[currentIndex];
-  const isCorrect = (choice === question.ans);
-  
-  if(isCorrect){
-    App.correctCount++;
-    App.streak++;
-    App.score += 100 + Math.max(0, App.streak - 1) * 10;
-    App.coins += 10;
+  const i = Game.currentIndex;
+  if(Game.userAnswers[i] !== undefined) return;
+  Game.userAnswers[i] = choice;
+  const correct = Game.currentQuestions[i].ans === choice;
+  if(correct){
+    Game.correctCount++;
+    Game.streak++;
+    const base = 100;
+    const bonus = Math.max(0, Game.streak-1) * 10;
+    Game.score += base + bonus;
+
+    // Check for streak bonus
+    if (Game.streak % 5 === 0 && !Game.awardedStreaks.has(Game.streak)) {
+      Game.awardedStreaks.add(Game.streak);
+      Game.coins += 50;
+      playSound('#coinSound');
+      const notification = create('div', 'streak-bonus');
+      notification.textContent = `+50 coins for ${Game.streak} streak!`;
+      notification.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:var(--success-color); color:white; padding:20px; border-radius:10px; font-weight:bold; z-index:4000;';
+      document.body.appendChild(notification);
+      setTimeout(() => notification.remove(), 2000);
+    }
+
+    Game.coins += 10;
     playSound('#correctSound');
-    toast('Correct! +10 coins');
+    confettiBurst();
   } else {
-    App.streak = 0;
+    Game.streak = 0;
+    Game.awardedStreaks.clear();
     playSound('#incorrectSound');
-    toast('Incorrect');
   }
-  
-  showAnswerState(choice);
-  refreshNavigator();
-  updatePowerupUI();
-  
-  if(currentIndex < App.questions.length - 1){
-    setTimeout(() => {
-      loadQuestion(currentIndex + 1);
-    }, 1500);
-  }
+  showAnswerState(choice, true);
+  updateStats();
 }
 
-function showAnswerState(chosen){
-  const question = App.questions[App.currentIndex];
-  const options = Array.from($('#options').children);
-  
-  options.forEach((option, index) => {
-    option.classList.remove('option-correct', 'option-wrong', 'fade');
-    
-    if(index === question.ans){
-      option.classList.add('option-correct');
-    }
-    
-    if(index === chosen && chosen !== question.ans){
-      option.classList.add('option-wrong');
-    }
-    
-    if(index !== question.ans && index !== chosen){
-      option.classList.add('fade');
-    }
-    
-    option.style.pointerEvents = 'none';
+function showAnswerState(chosen, animate=true){
+  const q = Game.currentQuestions[Game.currentIndex];
+  const opts = [...document.querySelectorAll('#options .option')];
+  opts.forEach((o,idx)=>{
+    if(idx===q.ans){ o.classList.add('correct'); }
+    if(idx===chosen && chosen!==q.ans){ o.classList.add('incorrect'); }
+    if(idx!==q.ans && idx!==chosen){ o.classList.add('faded'); }
   });
 }
 
-/* ---------------------------
-   Navigation Buttons
---------------------------- */
-$('#nextBtn').addEventListener('click', () => {
-  const nextIndex = Math.min(App.currentIndex + 1, App.questions.length - 1);
-  loadQuestion(nextIndex);
-});
+function nextUnansweredOrNext(){
+  const total = Game.currentQuestions.length;
+  for(let k=0;k<total;k++){
+    if(Game.userAnswers[k]===undefined && !Game.skipped.has(k)) return k;
+  }
+  return Math.min(Game.currentIndex+1, total-1);
+}
 
-$('#prevBtn').addEventListener('click', () => {
-  const prevIndex = Math.max(App.currentIndex - 1, 0);
-  loadQuestion(prevIndex);
-});
+function finishable(){
+  return Object.keys(Game.userAnswers).length + Game.skipped.size === Game.currentQuestions.length;
+}
 
-$('#submitBtn').addEventListener('click', () => {
-  const unanswered = App.questions.length - Object.keys(App.userAnswers).length;
+// ===========================
+// QUIZ SETTINGS & CREATION
+// ===========================
+function createNewQuiz(){
+  const count = parseInt($('#questionCount').value, 10) || 100;
+  const topicSel = $('#topicSelect').value;
+  const difficulty = $('#difficulty').value;
   
-  if(unanswered > 0){
-    if(!confirm(`You have ${unanswered} unanswered questions. Submit anyway?`)){
-      return;
-    }
+  Game.quizSettings.questionCount = count;
+  Game.quizSettings.topicSelection = topicSel;
+  Game.quizSettings.difficulty = difficulty;
+  
+  // Filter questions based on topic selection
+  let filteredQuestions = [...Game.questions];
+  
+  if (topicSel === 'part1') {
+    filteredQuestions = filteredQuestions.filter(q => q.part === 1);
+  } else if (topicSel === 'part2') {
+    filteredQuestions = filteredQuestions.filter(q => q.part === 2);
+  } else if (topicSel === 'custom') {
+    // For custom, we could implement topic selection UI
+    // For now, use all questions
   }
   
-  submitQuiz();
-});
-
-function submitQuiz(){
-  stopAllTimers();
+  // Shuffle questions
+  filteredQuestions = filteredQuestions.sort(() => Math.random() - 0.5);
   
-  const total = App.questions.length;
-  const correct = App.correctCount;
-  const percentage = Math.round((correct / total) * 100);
+  // Take the requested number of questions
+  const actualCount = Math.min(count, filteredQuestions.length);
+  Game.currentQuestions = filteredQuestions.slice(0, actualCount);
+  
+  // Reset game state
+  Game.userAnswers = {};
+  Game.skipped = new Set();
+  Game.currentIndex = 0;
+  Game.score = 0;
+  Game.correctCount = 0;
+  Game.streak = 0;
+  Game.awardedMilestones.clear();
+  Game.awardedStreaks.clear();
+  
+  // Reset timers
+  clearInterval(intervalId);
+  Game.timers = {mode:'none', quiz:300, question:30, handle:null, remaining:null};
+  $('#timerVal').textContent = '—';
+  
+  // Build UI
+  buildNavigator();
+  loadQuestion(0);
+  setPowerupCounts();
+  updateStats();
+  
+  // Switch to quiz tab
+  setActiveTab('quiz');
+  playSound('#clickSound');
+}
+
+// ===========================
+// TIMERS
+// ===========================
+let intervalId = null;
+function applyTimers(){
+  const mode = document.querySelector('.timeropt.active')?.dataset.timer || 'none';
+  Game.timers.mode = mode;
+  Game.timers.quiz = Math.max(30, parseInt($('#quizTimerInput').value||300,10));
+  Game.timers.question = Math.max(5, parseInt($('#questionTimerInput').value||30,10));
+  $('#quizTimerLabel').textContent = Game.timers.quiz+'s';
+  $('#questionTimerLabel').textContent = Game.timers.question+'s';
+
+  clearInterval(intervalId);
+  if(mode==='quiz'){ startCountdown(Game.timers.quiz, 'quiz'); }
+  if(mode==='question'){ startCountdown(Game.timers.question, 'question'); }
+  updateStats();
+}
+
+function startCountdown(sec, type){
+  Game.timers.remaining = sec;
+  $('#timerVal').textContent = Game.timers.remaining+'s';
+  clearInterval(intervalId);
+  intervalId = setInterval(()=>{
+    Game.timers.remaining--;
+    $('#timerVal').textContent = Game.timers.remaining+'s';
+    if(Game.timers.remaining<=0){
+      clearInterval(intervalId);
+      if(type==='quiz'){ submitQuiz(); }
+      if(type==='question'){
+        if(Game.userAnswers[Game.currentIndex]===undefined){
+          Game.skipped.add(Game.currentIndex);
+        }
+        const nxt = nextUnansweredOrNext();
+        if(nxt===Game.currentIndex){ submitQuiz(); }
+        else{
+          loadQuestion(nxt);
+          startCountdown(Game.timers.question,'question');
+        }
+      }
+    }
+  },1000);
+}
+
+// ===========================
+// POWER-UPS
+// ===========================
+function use5050(){
+  if(Game.powerups['5050']<=0) return;
+  const q = Game.currentQuestions[Game.currentIndex];
+  const wrongs = [0,1,2,3].filter(x=>x!==q.ans);
+  const toRemove = wrongs.sort(()=>Math.random()-0.5).slice(0,2);
+  const opts = [...document.querySelectorAll('#options .option')];
+  toRemove.forEach(idx=>{ opts[idx].classList.add('faded'); opts[idx].style.pointerEvents='none'; });
+  Game.powerups['5050']--; setPowerupCounts();
+  playSound('#powerupSound');
+}
+
+function useHint(){
+  if(Game.powerups.hint<=0) return;
+  const q = Game.currentQuestions[Game.currentIndex];
+  $('#hint').textContent = "Hint: " + (q.hint || "Think carefully about the material.");
+  $('#hint').style.display='block';
+  Game.powerups.hint--; setPowerupCounts();
+  playSound('#powerupSound');
+}
+
+function useSkip(){
+  if(Game.powerups.skip<=0) return;
+  Game.skipped.add(Game.currentIndex);
+  Game.powerups.skip--; setPowerupCounts();
+  playSound('#powerupSound');
+  const nxt = nextUnansweredOrNext();
+  loadQuestion(nxt);
+}
+
+// ===========================
+// SHOP
+// ===========================
+function openShop(){
+  $('#shopCoins').textContent = Game.coins;
+  $('#shopModal').classList.add('show');
+  updateShopButtons();
+}
+function closeShop(){ $('#shopModal').classList.remove('show'); }
+
+function updateShopButtons(){
+  document.querySelectorAll('.shop-item-btn').forEach(btn=>{
+    const price = parseInt(btn.dataset.price,10);
+    if(Game.coins < price){ btn.disabled=true; btn.textContent='Cannot afford'; }
+    else { btn.disabled=false; btn.textContent = 'Buy ('+price+')'; }
+  });
+}
+
+function buy(powerup, price){
+  if(Game.coins < price) return;
+  Game.coins -= price;
+  if(powerup==='5050') Game.powerups['5050']++;
+  if(powerup==='hint') Game.powerups.hint++;
+  if(powerup==='skip') Game.powerups.skip++;
+  setPowerupCounts();
+  updateStats();
+  updateShopButtons();
+  $('#shopCoins').textContent = Game.coins;
+  playSound('#coinSound');
+}
+
+// ===========================
+// RESULTS
+// ===========================
+function submitQuiz(){
+  clearInterval(intervalId);
+  const list = $('#resultsList'); list.innerHTML='';
+  let correct = 0;
+  let topicStats = {};
+  
+  Game.currentQuestions.forEach((q,i)=>{
+    const chosen = Game.userAnswers[i];
+    const isCorrect = chosen===q.ans;
+    if(isCorrect) correct++;
+    
+    // Track topic statistics
+    if(!topicStats[q.topic]) {
+      topicStats[q.topic] = {total:0, correct:0};
+    }
+    topicStats[q.topic].total++;
+    if(isCorrect) topicStats[q.topic].correct++;
+    
+    const item = create('div','result-item');
+    item.classList.add(isCorrect?'correct':'incorrect');
+    item.innerHTML = `<div><strong>Q${i+1} (Topic ${q.topic}):</strong> ${q.q}</div>
+    <div><em>Your answer:</em> ${chosen!==undefined ? q.options[chosen] : '<span style="color:#999">No answer</span>'}</div>
+    <div><em>Correct:</em> ${q.options[q.ans]}</div>
+    <div class="hint">${q.exp || ''}</div>`;
+    list.appendChild(item);
+  });
+  
+  // Build topic breakdown
+  let topicHTML = '<div style="margin: 15px 0; padding: 12px; background: #f8f9fa; border-radius: 10px;"><h4>Topic Performance:</h4><div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 8px;">';
+  Object.keys(topicStats).sort((a,b) => a-b).forEach(topic => {
+    const stats = topicStats[topic];
+    const percentage = Math.round((stats.correct/stats.total)*100);
+    topicHTML += `<div style="background: white; padding: 8px; border-radius: 6px; border-left: 4px solid ${topic <= 6 ? 'var(--part1-color)' : 'var(--part2-color)'}">
+      <div style="font-weight: bold;">Topic ${topic}</div>
+      <div>${stats.correct}/${stats.total} (${percentage}%)</div>
+    </div>`;
+  });
+  topicHTML += '</div></div>';
   
   $('#resultsSummary').innerHTML = `
-    <div class="p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border">
-      <div class="text-center">
-        <div class="text-3xl font-bold text-blue-600">${App.score}</div>
-        <div class="text-sm text-gray-600">Total Score</div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 15px 0;">
+      <div style="background: #e7f7ff; padding: 15px; border-radius: 10px; text-align: center;">
+        <div style="font-size: 2rem; font-weight: 800; color: var(--primary-color);">${Game.score}</div>
+        <div style="color: #666; font-size: 0.9rem;">Total Score</div>
       </div>
-      <div class="grid grid-cols-3 gap-4 mt-4 text-center">
-        <div>
-          <div class="text-xl font-semibold">${correct}/${total}</div>
-          <div class="text-xs text-gray-600">Correct</div>
-        </div>
-        <div>
-          <div class="text-xl font-semibold">${percentage}%</div>
-          <div class="text-xs text-gray-600">Percentage</div>
-        </div>
-        <div>
-          <div class="text-xl font-semibold">${App.coins}</div>
-          <div class="text-xs text-gray-600">Coins Earned</div>
-        </div>
+      <div style="background: #e7f7ff; padding: 15px; border-radius: 10px; text-align: center;">
+        <div style="font-size: 2rem; font-weight: 800; color: var(--success-color);">${correct}/${Game.currentQuestions.length}</div>
+        <div style="color: #666; font-size: 0.9rem;">Correct Answers</div>
+      </div>
+      <div style="background: #e7f7ff; padding: 15px; border-radius: 10px; text-align: center;">
+        <div style="font-size: 2rem; font-weight: 800; color: #f39c12;">${Math.round((correct/Game.currentQuestions.length)*100)}%</div>
+        <div style="color: #666; font-size: 0.9rem;">Percentage</div>
       </div>
     </div>
+    ${topicHTML}
   `;
   
-  const resultsList = $('#resultsList');
-  resultsList.innerHTML = '';
-  
-  App.questions.forEach((question, index) => {
-    const chosen = App.userAnswers[index];
-    const isCorrect = chosen === question.ans;
-    
-    const item = document.createElement('div');
-    item.className = `p-4 rounded-lg border ${isCorrect ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`;
-    
-    let optionsHtml = '';
-    question.options.forEach((option, optIndex) => {
-      let marker = '';
-      if(optIndex === question.ans) marker = '✅ Correct';
-      if(optIndex === chosen && !isCorrect) marker = '❌ Your choice';
-      
-      optionsHtml += `
-        <div class="p-2 ${optIndex === question.ans ? 'bg-green-100' : optIndex === chosen && !isCorrect ? 'bg-red-100' : 'bg-gray-100'} rounded mb-1">
-          <span class="font-medium">${String.fromCharCode(65 + optIndex)}.</span> ${option}
-          ${marker ? `<span class="ml-2 text-sm font-semibold">${marker}</span>` : ''}
-        </div>
-      `;
-    });
-    
-    item.innerHTML = `
-      <div class="flex justify-between items-start">
-        <div class="font-semibold">${index + 1}. ${question.question}</div>
-        <span class="text-sm font-semibold ${isCorrect ? 'text-green-600' : 'text-red-600'}">
-          ${isCorrect ? 'CORRECT' : 'INCORRECT'}
-        </span>
-      </div>
-      <div class="mt-3">${optionsHtml}</div>
-      ${question.hint ? `<div class="mt-2 text-sm text-gray-600 p-2 bg-yellow-50 rounded">💡 ${question.hint}</div>` : ''}
-    `;
-    
-    resultsList.appendChild(item);
-  });
-  
-  $('#quizCard').classList.add('hidden');
-  $('#resultsCard').classList.remove('hidden');
-  
-  if(percentage >= 80){
-    playSound('#powerSound');
+  document.getElementById('resultsView').style.display='block';
+  if(correct === Game.currentQuestions.length){ 
+    playSound('#winSound'); 
     confettiBurst();
-    toast('Excellent work! 🎉');
+    // Bonus for perfect score
+    Game.coins += 200;
+    updateStats();
+    const perfect = create('div', 'perfect-score');
+    perfect.textContent = 'Perfect Score! +200 coins!';
+    perfect.style.cssText = 'position:fixed; top:20%; left:50%; transform:translate(-50%,-50%); background:linear-gradient(135deg, #ffd700, #ff9500); color:white; padding:25px 30px; border-radius:15px; font-weight:bold; font-size:1.2rem; z-index:4000; box-shadow:0 10px 30px rgba(255, 215, 0, 0.4);';
+    document.body.appendChild(perfect);
+    setTimeout(() => perfect.remove(), 3000);
+  } else if(Game.score >= 500){ 
+    playSound('#winSound'); 
+    confettiBurst(); 
   }
+  setActiveTab('results');
 }
 
-/* ---------------------------
-   Power-ups & Shop
---------------------------- */
-$('#pu5050').addEventListener('click', () => {
-  if(App.powerups['5050'] <= 0){
-    toast('No 50:50 power-ups remaining');
-    return;
-  }
-  
-  const question = App.questions[App.currentIndex];
-  const options = Array.from($('#options').children);
-  const wrongOptions = options.map((_, index) => index).filter(index => index !== question.ans);
-  
-  shuffle(wrongOptions).slice(0, 2).forEach(index => {
-    options[index].classList.add('fade');
-    options[index].style.pointerEvents = 'none';
-  });
-  
-  App.powerups['5050']--;
-  updatePowerupUI();
-  playSound('#powerSound');
-  toast('Two wrong options removed');
-});
+// ===========================
+// INIT & EVENTS
+// ===========================
+function init(){
+  // elements
+  Game.els = {
+    study: $('#studyMode'),
+    quiz: $('#quizMode'),
+    results: $('#resultsView'),
+  };
 
-$('#puHint').addEventListener('click', () => {
-  if(App.powerups.hint <= 0){
-    toast('No hints remaining');
-    return;
-  }
-  
-  const question = App.questions[App.currentIndex];
-  $('#hint').textContent = '💡 ' + (question.hint || 'Look for key terms in the context');
-  $('#hint').classList.remove('hidden');
-  
-  App.powerups.hint--;
-  updatePowerupUI();
-  playSound('#powerSound');
-});
+  // Update Game with loaded content
+  Game.chapters = studyChapters;
+  Game.questions = completeQuizBank;
 
-$('#puSkip').addEventListener('click', () => {
-  if(App.powerups.skip <= 0){
-    toast('No skips remaining');
-    return;
-  }
-  
-  App.skipped.add(App.currentIndex);
-  App.powerups.skip--;
-  
-  let nextIndex = App.currentIndex + 1;
-  while(nextIndex < App.questions.length && App.userAnswers[nextIndex] !== undefined){
-    nextIndex++;
-  }
-  
-  if(nextIndex >= App.questions.length){
-    nextIndex = 0;
-    while(nextIndex < App.currentIndex && App.userAnswers[nextIndex] !== undefined){
-      nextIndex++;
-    }
-  }
-  
-  updatePowerupUI();
-  loadQuestion(nextIndex);
-  playSound('#powerSound');
-  toast('Question skipped');
-});
+  buildStudy();
+  buildTopicFilter();
 
-function updatePowerupUI(){
-  $('#count5050').textContent = App.powerups['5050'];
-  $('#countHint').textContent = App.powerups.hint;
-  $('#countSkip').textContent = App.powerups.skip;
-  $('#coins').textContent = App.coins;
-  $('#coinsTop').textContent = App.coins;
-  $('#score').textContent = App.score;
-  $('#correctCount').textContent = App.correctCount;
-  $('#streak').textContent = App.streak;
-  $('#currentQ').textContent = App.currentIndex + 1;
-}
-
-$('#coinsContainer').addEventListener('click', () => {
-  $('#shopModal').classList.remove('hidden');
-});
-
-$('#closeShop').addEventListener('click', () => {
-  $('#shopModal').classList.add('hidden');
-});
-
-document.querySelectorAll('.shopBuy').forEach(button => {
-  button.addEventListener('click', function() {
-    const price = parseInt(this.dataset.price);
-    const power = this.dataset.power;
-    
-    if(App.coins < price){
-      toast('Not enough coins!');
-      return;
-    }
-    
-    App.coins -= price;
-    App.powerups[power] = (App.powerups[power] || 0) + 1;
-    
-    updatePowerupUI();
-    $('#shopModal').classList.add('hidden');
-    playSound('#coinSound');
-    toast(`Purchased ${power} power-up!`);
-  });
-});
-
-/* ---------------------------
-   Timer System
---------------------------- */
-$('#applyTimers').addEventListener('click', () => {
-  App.timers.mode = $('#timerMode').value;
-  App.timers.question = Math.max(5, parseInt($('#questionTimerInput').value) || 30);
-  App.timers.quiz = Math.max(10, parseInt($('#quizTimerInput').value) || 300);
-  
-  startTimers();
-  toast('Timer settings updated');
-});
-
-function startTimers(){
-  stopAllTimers();
-  
-  if(App.timers.mode === 'none'){
-    $('#timerVal').textContent = '—';
-    return;
-  }
-  
-  if(App.timers.mode === 'quiz'){
-    App.timers.quizRemaining = App.timers.quiz;
-    $('#timerVal').textContent = formatTime(App.timers.quizRemaining);
-    
-    App.timers.interval = setInterval(() => {
-      App.timers.quizRemaining--;
-      $('#timerVal').textContent = formatTime(App.timers.quizRemaining);
-      
-      if(App.timers.quizRemaining <= 0){
-        clearInterval(App.timers.interval);
-        submitQuiz();
-      }
-    }, 1000);
+  // Create initial quiz with all questions
+  if (Game.questions.length > 0) {
+    Game.currentQuestions = Game.questions.map(q=>({...q}));
+    buildNavigator();
+    loadQuestion(0);
   } else {
-    resetQuestionTimer();
+    // Show message if no questions loaded
+    $('#qText').textContent = "No questions loaded. Please check content file.";
   }
+  
+  setPowerupCounts();
+  updateStats();
+
+  // Tabs
+  $('#tabStudy').addEventListener('click',()=>setActiveTab('study'));
+  $('#tabQuiz').addEventListener('click',()=>setActiveTab('quiz'));
+  $('#tabResults').addEventListener('click',()=>setActiveTab('results'));
+
+  // Timer options
+  document.querySelectorAll('.timeropt').forEach(b=>{
+    b.addEventListener('click',()=>{
+      document.querySelectorAll('.timeropt').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+    });
+  });
+  $('#applyTimers').addEventListener('click', applyTimers);
+
+  // Quiz creation
+  $('#startQuiz').addEventListener('click', createNewQuiz);
+
+  // Nav buttons
+  $('#prevBtn').addEventListener('click', ()=>{ playSound('#clickSound'); if(Game.currentIndex>0) loadQuestion(Game.currentIndex-1); });
+  $('#nextBtn').addEventListener('click', ()=>{
+     playSound('#clickSound');
+     if(Game.currentIndex < Game.currentQuestions.length-1) loadQuestion(Game.currentIndex+1);
+     else if(finishable()) submitQuiz();
+  });
+  $('#submitBtn').addEventListener('click', ()=>{ if(finishable()) submitQuiz(); });
+
+  // Powerups
+  $('#pu5050').addEventListener('click', use5050);
+  $('#puHint').addEventListener('click', useHint);
+  $('#puSkip').addEventListener('click', useSkip);
+
+  // Shop
+  $('#openShop').addEventListener('click', openShop);
+  $('#sidebarShop').addEventListener('click', openShop);
+  $('#closeShop').addEventListener('click', closeShop);
+  document.querySelectorAll('.shop-item-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const type = btn.dataset.powerup;
+      const price = parseInt(btn.dataset.price,10);
+      buy(type, price);
+    });
+  });
+
+  // Results actions
+  $('#retryWrong').addEventListener('click', ()=>{
+    const wrong = Game.currentQuestions.filter((q,i)=>Game.userAnswers[i]!==q.ans);
+    restartQuiz(wrong);
+  });
+  $('#retryAll').addEventListener('click', ()=>{
+    restartQuiz(Game.currentQuestions);
+  });
+  $('#newQuiz').addEventListener('click', () => {
+    createNewQuiz();
+  });
+
+  // default tab
+  setActiveTab('study');
 }
 
-function resetQuestionTimer(){
-  if(App.timers.mode !== 'question') return;
-  
-  App.timers.questionRemaining = App.timers.question;
-  $('#timerVal').textContent = formatTime(App.timers.questionRemaining);
-  
-  if(App.timers.interval) clearInterval(App.timers.interval);
-  
-  App.timers.interval = setInterval(() => {
-    App.timers.questionRemaining--;
-    $('#timerVal').textContent = formatTime(App.timers.questionRemaining);
-    
-    if(App.timers.questionRemaining <= 0){
-      clearInterval(App.timers.interval);
-      
-      App.userAnswers[App.currentIndex] = null;
-      
-      const nextIndex = findNextUnanswered();
-      if(nextIndex !== -1){
-        loadQuestion(nextIndex);
-      } else {
-        submitQuiz();
-      }
-    }
-  }, 1000);
-}
-
-function stopAllTimers(){
-  if(App.timers.interval){
-    clearInterval(App.timers.interval);
-    App.timers.interval = null;
-  }
+function restartQuiz(arr){
+  Game.currentQuestions = arr.map(q=>({...q}));
+  Game.userAnswers = {};
+  Game.skipped = new Set();
+  Game.currentIndex = 0;
+  Game.score = 0; Game.correctCount=0; Game.streak=0;
+  Game.awardedMilestones.clear();
+  Game.awardedStreaks.clear();
+  buildNavigator();
+  loadQuestion(0);
+  setActiveTab('quiz');
   $('#timerVal').textContent = '—';
+  clearInterval(intervalId);
 }
 
-function formatTime(seconds){
-  if(seconds == null) return '—';
-  const minutes = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${minutes}:${secs.toString().padStart(2, '0')}`;
+function setActiveTab(tab){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  if(tab==='study'){
+    $('#tabStudy').classList.add('active');
+    Game.els.study.style.display='block';
+    Game.els.quiz.style.display='none';
+    Game.els.results.style.display='none';
+  }else if(tab==='quiz'){
+    $('#tabQuiz').classList.add('active');
+    Game.els.study.style.display='none';
+    Game.els.quiz.style.display='block';
+    Game.els.results.style.display='none';
+  }else{
+    $('#tabResults').classList.add('active');
+    Game.els.study.style.display='none';
+    Game.els.quiz.style.display='none';
+    Game.els.results.style.display='block';
+  }
 }
 
-function findNextUnanswered(){
-  for(let i = 0; i < App.questions.length; i++){
-    if(App.userAnswers[i] === undefined && !App.skipped.has(i)){
-      return i;
-    }
-  }
-  return -1;
-}
+// ===========================
+// START THE APP
+// ===========================
 
-/* ---------------------------
-   STRUCTURED STUDY GUIDE - LIKE YOUR EXAMPLE
---------------------------- */
-$('#buildStudyBtn').addEventListener('click', () => {
-  if(!App.pdfText || App.pdfText.trim().length < 100){
-    toast('Upload a PDF with sufficient content first');
-    return;
-  }
-  
-  showStudyGuide();
-});
-
-$('#generateStudyBtn').addEventListener('click', () => {
-  if(!App.pdfText || App.pdfText.trim().length < 100){
-    toast('Upload a PDF with sufficient content first');
-    return;
-  }
-  
-  showStudyGuide();
-});
-
-function showStudyGuide(){
-  // Generate structured study guide
-  const studyGuide = generateStructuredStudyGuide(App.pdfText);
-  App.currentStudyGuide = studyGuide;
-  
-  const studyContent = $('#studyContent');
-  const studyStats = $('#studyStats');
-  
-  // Update stats
-  studyStats.innerHTML = `
-    <div class="flex justify-between items-center">
-      <div>
-        <div class="font-semibold">📘 ${studyGuide.title.toUpperCase()} - QUICK REVIEWER</div>
-        <div class="text-sm text-gray-600">${studyGuide.sections.length} sections • ${studyGuide.keyTerms.length} key terms • Ready for study</div>
-      </div>
-      <div class="text-sm text-gray-600">
-        <i class="fa-solid fa-graduation-cap text-purple-500 mr-1"></i>
-        Structured Guide
-      </div>
-    </div>
-  `;
-  
-  studyContent.innerHTML = '';
-  
-  if(studyGuide.sections.length === 0){
-    studyContent.innerHTML = `
-      <div class="text-center p-8 text-gray-500">
-        <i class="fa-solid fa-book-open text-4xl mb-4"></i>
-        <p class="text-lg font-medium">Could not generate structured guide</p>
-        <p class="text-sm mt-2">The document doesn't have clear section structure.</p>
-        <button id="createBasicGuide" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
-          Create Basic Guide
-        </button>
-      </div>
-    `;
-    
-    $('#createBasicGuide').addEventListener('click', () => {
-      createBasicStudyGuide();
-    });
-  } else {
-    displayStudyGuide(studyGuide);
-  }
-  
-  $('#studyModal').classList.remove('hidden');
-}
-
-function createBasicStudyGuide(){
-  const basicGuide = {
-    title: "Study Guide",
-    sections: [
-      {
-        title: "Key Concepts",
-        content: App.pdfText.substring(0, 500) + "...",
-        bulletPoints: extractKeySentences(App.pdfText, 8)
-      },
-      {
-        title: "Important Terms",
-        content: "Key terminology from the document",
-        bulletPoints: extractKeyTermsAsBullets(App.pdfText, 10)
-      },
-      {
-        title: "Main Points",
-        content: "Summary of important information",
-        bulletPoints: extractImportantSentences(App.pdfText, 6)
-      }
-    ],
-    keyTerms: extractBasicKeyTerms(App.pdfText),
-    importantPoints: extractImportantSentences(App.pdfText, 10),
-    contactInfo: [],
-    memoryTips: ["Review regularly", "Test yourself", "Connect concepts"]
-  };
-  
-  App.currentStudyGuide = basicGuide;
-  displayStudyGuide(basicGuide);
-}
-
-function extractKeySentences(text, count){
-  const sentences = text.split(/[.!?]/);
-  return sentences
-    .filter(s => s.length > 30 && s.length < 150)
-    .slice(0, count)
-    .map(s => s.trim());
-}
-
-function extractKeyTermsAsBullets(text, count){
-  const terms = [];
-  const matches = [...text.matchAll(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b/g)];
-  
-  matches.forEach(match => {
-    if(terms.length < count && match[1].length > 5) {
-      terms.push(match[1]);
-    }
-  });
-  
-  return terms;
-}
-
-function extractImportantSentences(text, count){
-  const sentences = text.split(/[.!?]/);
-  const important = [];
-  
-  sentences.forEach(sentence => {
-    if(important.length < count && sentence.length > 40 && sentence.length < 200) {
-      if(/(?:important|key|critical|essential|major|significant|note|remember)/i.test(sentence)) {
-        important.push(sentence.trim());
-      }
-    }
-  });
-  
-  return important;
-}
-
-function extractBasicKeyTerms(text){
-  const terms = [];
-  const matches = [...text.matchAll(/([A-Z][A-Za-z0-9\s\-&()]+)\s*(?:is|are|means|refers to|defined as)\s+([^.!?]{10,100})/gi)];
-  
-  matches.forEach(match => {
-    if(terms.length < 15) {
-      terms.push({
-        term: match[1].trim(),
-        definition: match[2].trim().substring(0, 100) + "..."
-      });
-    }
-  });
-  
-  return terms;
-}
-
-function displayStudyGuide(guide){
-  const studyContent = $('#studyContent');
-  studyContent.innerHTML = '';
-  
-  // Display main title
-  const titleElement = document.createElement('div');
-  titleElement.className = 'mb-6';
-  titleElement.innerHTML = `
-    <h2 class="text-2xl font-bold text-gray-800 mb-2">📘 ${guide.title.toUpperCase()} - QUICK REVIEWER</h2>
-    <div class="h-1 w-24 bg-blue-500 rounded"></div>
-  `;
-  studyContent.appendChild(titleElement);
-  
-  // Display sections
-  guide.sections.forEach((section, index) => {
-    const sectionElement = document.createElement('div');
-    sectionElement.className = 'study-section p-4 rounded-lg mb-4';
-    
-    let sectionHTML = `
-      <h3 class="font-bold text-lg text-gray-800 mb-3 flex items-center">
-        <span class="bg-blue-100 text-blue-700 w-8 h-8 rounded-full flex items-center justify-center mr-3">${index + 1}</span>
-        ${section.title}
-      </h3>
-    `;
-    
-    // Add bullet points if available
-    if(section.bulletPoints && section.bulletPoints.length > 0) {
-      sectionHTML += '<div class="space-y-2 ml-11">';
-      section.bulletPoints.forEach(point => {
-        // Highlight key terms in bullet points
-        let processedPoint = point;
-        guide.keyTerms.forEach(term => {
-          if(point.includes(term.term)) {
-            processedPoint = point.replace(
-              new RegExp(`\\b${escapeReg(term.term)}\\b`, 'gi'),
-              `<span class="highlight-term">${term.term}</span>`
-            );
-          }
-        });
-        
-        sectionHTML += `
-          <div class="study-point text-gray-700">
-            ${processedPoint}
-          </div>
-        `;
-      });
-      sectionHTML += '</div>';
-    } else if(section.content) {
-      // Show content as paragraph
-      sectionHTML += `
-        <div class="text-gray-700 ml-11">
-          ${section.content.substring(0, 300)}${section.content.length > 300 ? '...' : ''}
-        </div>
-      `;
-    }
-    
-    // Add separator line between sections
-    if(index < guide.sections.length - 1) {
-      sectionHTML += '<div class="border-t border-gray-200 mt-4 pt-4"></div>';
-    }
-    
-    sectionElement.innerHTML = sectionHTML;
-    studyContent.appendChild(sectionElement);
-  });
-  
-  // Display key terms section if available
-  if(guide.keyTerms && guide.keyTerms.length > 0) {
-    const termsElement = document.createElement('div');
-    termsElement.className = 'study-section p-4 rounded-lg mb-4';
-    termsElement.innerHTML = `
-      <h3 class="font-bold text-lg text-gray-800 mb-3 flex items-center">
-        <span class="bg-purple-100 text-purple-700 w-8 h-8 rounded-full flex items-center justify-center mr-3">🔑</span>
-        Key Terms & Definitions
-      </h3>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 ml-11">
-        ${guide.keyTerms.slice(0, 10).map(term => `
-          <div class="p-3 bg-white border rounded hover:shadow-sm transition-shadow">
-            <div class="font-semibold text-gray-800">${term.term} ${term.abbreviation ? `(${term.abbreviation})` : ''}</div>
-            <div class="text-sm text-gray-600 mt-1">${term.definition.substring(0, 80)}${term.definition.length > 80 ? '...' : ''}</div>
-          </div>
-        `).join('')}
-      </div>
-    `;
-    studyContent.appendChild(termsElement);
-  }
-  
-  // Display memory tips if available
-  if(guide.memoryTips && guide.memoryTips.length > 0) {
-    const tipsElement = document.createElement('div');
-    tipsElement.className = 'memory-tip p-4 rounded-lg mb-4';
-    tipsElement.innerHTML = `
-      <h3 class="font-bold text-lg text-gray-800 mb-3 flex items-center">
-        <span class="bg-green-100 text-green-700 w-8 h-8 rounded-full flex items-center justify-center mr-3">🎯</span>
-        Memory Tips
-      </h3>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-2 ml-11">
-        ${guide.memoryTips.map(tip => `
-          <div class="p-2 bg-white bg-opacity-70 rounded text-sm">
-            • ${tip}
-          </div>
-        `).join('')}
-      </div>
-    `;
-    studyContent.appendChild(tipsElement);
-  }
-  
-  // Display contact information if available
-  if(guide.contactInfo && guide.contactInfo.length > 0) {
-    const contactElement = document.createElement('div');
-    contactElement.className = 'helpline-box p-4 rounded-lg';
-    contactElement.innerHTML = `
-      <h3 class="font-bold text-lg text-gray-800 mb-3 flex items-center">
-        <span class="bg-yellow-100 text-yellow-700 w-8 h-8 rounded-full flex items-center justify-center mr-3">🆘</span>
-        Contact Information
-      </h3>
-      <div class="space-y-2 ml-11">
-        ${guide.contactInfo.map(contact => `
-          <div class="p-3 bg-white bg-opacity-80 rounded">
-            <div class="font-semibold">${contact.label}</div>
-            <div class="text-lg font-mono mt-1">${contact.value}</div>
-          </div>
-        `).join('')}
-      </div>
-    `;
-    studyContent.appendChild(contactElement);
-  }
-  
-  // Add export functionality
-  $('#exportStudyBtn').onclick = () => {
-    exportStudyGuideToText(guide);
-  };
-}
-
-function exportStudyGuideToText(guide){
-  let text = `📘 ${guide.title.toUpperCase()} - QUICK REVIEWER\n`;
-  text += '='.repeat(50) + '\n\n';
-  
-  // Add sections
-  guide.sections.forEach((section, index) => {
-    text += `### ${section.title}\n`;
-    
-    if(section.bulletPoints && section.bulletPoints.length > 0) {
-      section.bulletPoints.forEach(point => {
-        text += `• ${point}\n`;
-      });
-    } else if(section.content) {
-      text += `${section.content.substring(0, 300)}${section.content.length > 300 ? '...' : ''}\n`;
-    }
-    
-    text += '\n';
-  });
-  
-  // Add key terms
-  if(guide.keyTerms && guide.keyTerms.length > 0) {
-    text += '### Key Terms & Definitions\n';
-    guide.keyTerms.forEach(term => {
-      text += `• ${term.term}${term.abbreviation ? ` (${term.abbreviation})` : ''}: ${term.definition}\n`;
-    });
-    text += '\n';
-  }
-  
-  // Add memory tips
-  if(guide.memoryTips && guide.memoryTips.length > 0) {
-    text += '### Memory Tips\n';
-    guide.memoryTips.forEach(tip => {
-      text += `🎯 ${tip}\n`;
-    });
-    text += '\n';
-  }
-  
-  // Create downloadable file
-  const blob = new Blob([text], {type: 'text/plain'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `study-guide-${new Date().toISOString().slice(0,10)}.txt`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  
-  toast('Study guide exported as text file');
-}
-
-$('#closeStudyModal').addEventListener('click', () => {
-  $('#studyModal').classList.add('hidden');
-});
-
-/* ---------------------------
-   SAVED QUIZZES SYSTEM - IMPROVED
---------------------------- */
-function loadSavedQuizzes(){
-  const savedQuizzes = JSON.parse(localStorage.getItem('quizpro_saved') || '[]');
-  const quizList = $('#quizList');
-  
-  quizList.innerHTML = '';
-  
-  if(savedQuizzes.length === 0){
-    quizList.innerHTML = `
-      <div class="text-center p-8 text-gray-500">
-        <i class="fa-solid fa-box-open text-4xl mb-4"></i>
-        <p class="text-lg font-medium">No saved quizzes yet</p>
-        <p class="text-sm mt-2">Save quizzes to review them later</p>
-      </div>
-    `;
-    return;
-  }
-  
-  // Sort by most recent first
-  savedQuizzes.sort((a, b) => new Date(b.created) - new Date(a.created));
-  
-  savedQuizzes.forEach((quiz, index) => {
-    const quizElement = document.createElement('div');
-    quizElement.className = 'saved-quiz-item p-4 border rounded-lg bg-white hover:shadow-md transition-all';
-    
-    const date = new Date(quiz.created);
-    const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    
-    quizElement.innerHTML = `
-      <div class="flex justify-between items-start">
-        <div class="flex-1">
-          <div class="font-bold text-lg text-gray-800 mb-1">${quiz.title || 'Untitled Quiz'}</div>
-          <div class="flex items-center gap-2 flex-wrap">
-            <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">${quiz.category || 'General'}</span>
-            <span class="text-xs text-gray-600">•</span>
-            <span class="text-sm text-gray-600">${quiz.questions ? quiz.questions.length : 0} questions</span>
-            <span class="text-xs text-gray-600">•</span>
-            <span class="text-sm text-gray-500">${formattedDate}</span>
-          </div>
-          ${quiz.pdfName ? `<div class="mt-2 text-xs text-gray-500"><i class="fa-solid fa-file-pdf mr-1"></i> ${quiz.pdfName}</div>` : ''}
-        </div>
-        <div class="flex gap-2 ml-4 flex-shrink-0">
-          <button class="load-quiz-btn px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors text-sm"
-                  data-index="${index}">
-            <i class="fa-solid fa-play mr-1"></i> Load
-          </button>
-          <button class="delete-quiz-btn px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors text-sm"
-                  data-index="${index}">
-            <i class="fa-solid fa-trash mr-1"></i>
-          </button>
-        </div>
-      </div>
-    `;
-    
-    quizList.appendChild(quizElement);
-  });
-  
-  // Event delegation for saved quizzes
-  quizList.addEventListener('click', function(event){
-    const target = event.target;
-    const button = target.closest('button');
-    if(!button) return;
-    
-    const savedQuizzes = JSON.parse(localStorage.getItem('quizpro_saved') || '[]');
-    const index = parseInt(button.dataset.index);
-    
-    if(isNaN(index) || index < 0 || index >= savedQuizzes.length) return;
-    
-    if(button.classList.contains('load-quiz-btn')){
-      const quiz = savedQuizzes[index];
-      if(quiz && quiz.questions){
-        startQuizWith(quiz.questions);
-        $('#savedCard').classList.add('hidden');
-        toast(`Loaded "${quiz.title}"`);
-      }
-    }
-    
-    if(button.classList.contains('delete-quiz-btn')){
-      if(confirm('Are you sure you want to delete this saved quiz?')){
-        savedQuizzes.splice(index, 1);
-        localStorage.setItem('quizpro_saved', JSON.stringify(savedQuizzes));
-        loadSavedQuizzes();
-        toast('Quiz deleted');
-      }
-    }
-  });
-}
-
-// SAVE QUIZ FUNCTIONALITY
-$('#saveQuizBtn').addEventListener('click', () => {
-  if(!App.questions || App.questions.length === 0){
-    toast('No quiz to save');
-    return;
-  }
-  
-  $('#quizTitle').value = App.pdfText ? `Quiz from ${$('#fileName').textContent || 'PDF'}` : 'My Quiz';
-  $('#saveModal').classList.remove('hidden');
-});
-
-$('#closeSave').addEventListener('click', () => {
-  $('#saveModal').classList.add('hidden');
-});
-
-$('#cancelSave').addEventListener('click', () => {
-  $('#saveModal').classList.add('hidden');
-});
-
-$('#saveToLocal').addEventListener('click', () => {
-  const title = $('#quizTitle').value.trim() || 'Untitled Quiz';
-  const category = $('#quizCategory').value || 'General';
-  
-  const quizData = {
-    id: 'quiz_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-    title: title,
-    category: category,
-    questions: App.questions,
-    created: new Date().toISOString(),
-    pdfName: $('#fileName').textContent || null
-  };
-  
-  let savedQuizzes = JSON.parse(localStorage.getItem('quizpro_saved') || '[]');
-  savedQuizzes.push(quizData);
-  localStorage.setItem('quizpro_saved', JSON.stringify(savedQuizzes));
-  
-  $('#saveModal').classList.add('hidden');
-  toast('Quiz saved successfully!');
-  loadSavedQuizzes();
-});
-
-$('#clearStorageBtn').addEventListener('click', () => {
-  if(confirm('Are you sure you want to clear ALL saved quizzes? This cannot be undone.')){
-    localStorage.removeItem('quizpro_saved');
-    loadSavedQuizzes();
-    toast('All saved quizzes cleared');
-  }
-});
-
-/* ---------------------------
-   VIEW CONTROLS - WITH CLEAR SAVED BUTTON
---------------------------- */
-// NEW: Header button for saved quizzes
-$('#viewSavedHeaderBtn').addEventListener('click', showSavedQuizzes);
-
-// Sidebar button
-$('#viewSavedBtn').addEventListener('click', showSavedQuizzes);
-
-function showSavedQuizzes(){
-  $('#savedCard').classList.remove('hidden');
-  $('#quizCard').classList.add('hidden');
-  $('#resultsCard').classList.add('hidden');
-  $('#uploadCard').classList.add('hidden');
-  $('#configureCard').classList.add('hidden');
-  loadSavedQuizzes();
-  toast('Viewing saved quizzes');
-}
-
-$('#viewResultsBtn').addEventListener('click', () => {
-  if(Object.keys(App.userAnswers).length === 0){
-    toast('No quiz results to show');
-    return;
-  }
-  $('#resultsCard').classList.remove('hidden');
-  $('#savedCard').classList.add('hidden');
-  $('#quizCard').classList.add('hidden');
-});
-
-$('#backToUpload').addEventListener('click', () => {
-  $('#savedCard').classList.add('hidden');
-  $('#uploadCard').classList.remove('hidden');
-  $('#configureCard').classList.remove('hidden');
-  $('#quizCard').classList.add('hidden');
-  $('#resultsCard').classList.add('hidden');
-});
-
-/* ---------------------------
-   Export Functions
---------------------------- */
-$('#exportAllBtn').addEventListener('click', () => {
-  if(App.seeds.length === 0){
-    toast('No seeds to export');
-    return;
-  }
-  
-  const exportData = {
-    seeds: App.seeds,
-    exportedAt: new Date().toISOString(),
-    count: App.seeds.length
-  };
-  
-  const blob = new Blob([JSON.stringify(exportData, null, 2)], {type: 'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `quizpro-seeds-${new Date().toISOString().slice(0,10)}.json`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  
-  toast('Seeds exported successfully');
-});
-
-$('#exportResults').addEventListener('click', () => {
-  if(!App.questions || App.questions.length === 0){
-    toast('No results to export');
-    return;
-  }
-  
-  const exportData = {
-    score: App.score,
-    correctCount: App.correctCount,
-    totalQuestions: App.questions.length,
-    percentage: Math.round((App.correctCount / App.questions.length) * 100),
-    answers: App.userAnswers,
-    exportedAt: new Date().toISOString()
-  };
-  
-  const blob = new Blob([JSON.stringify(exportData, null, 2)], {type: 'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `quizpro-results-${new Date().toISOString().slice(0,10)}.json`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  
-  toast('Results exported successfully');
-});
-
-/* ---------------------------
-   Retry Functions
---------------------------- */
-$('#retryAll').addEventListener('click', () => {
-  if(!App.questions || App.questions.length === 0){
-    toast('No quiz to retry');
-    return;
-  }
-  startQuizWith(App.questions);
-});
-
-$('#retryWrong').addEventListener('click', () => {
-  const wrongQuestions = App.questions.filter((question, index) => {
-    return App.userAnswers[index] !== question.ans;
-  });
-  
-  if(wrongQuestions.length === 0){
-    toast('No wrong answers to retry!');
-    return;
-  }
-  
-  startQuizWith(wrongQuestions);
-  toast(`Retrying ${wrongQuestions.length} questions`);
-});
-
-/* ---------------------------
-   Fullscreen
---------------------------- */
-$('#openFull').addEventListener('click', () => {
-  try{
-    if(document.documentElement.requestFullscreen){
-      document.documentElement.requestFullscreen();
-    } else if(document.documentElement.webkitRequestFullscreen){
-      document.documentElement.webkitRequestFullscreen();
-    } else if(document.documentElement.msRequestFullscreen){
-      document.documentElement.msRequestFullscreen();
-    }
-    toast('Entered fullscreen mode');
-  } catch(error){
-    toast('Fullscreen not supported');
-  }
-});
-
-/* ---------------------------
-   Confetti Effect
---------------------------- */
-function confettiBurst(){
-  const colors = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#EC4899'];
-  const container = document.createElement('div');
-  container.style.position = 'fixed';
-  container.style.top = '0';
-  container.style.left = '0';
-  container.style.width = '100%';
-  container.style.height = '100%';
-  container.style.pointerEvents = 'none';
-  container.style.zIndex = '9999';
-  
-  document.body.appendChild(container);
-  
-  for(let i = 0; i < 60; i++){
-    const confetti = document.createElement('div');
-    confetti.style.position = 'absolute';
-    confetti.style.width = '10px';
-    confetti.style.height = '10px';
-    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-    confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
-    confetti.style.left = Math.random() * 100 + '%';
-    confetti.style.top = '-20px';
-    confetti.style.opacity = '0.9';
-    
-    container.appendChild(confetti);
-    
-    const animation = confetti.animate([
-      { transform: `translate(0, 0) rotate(0deg)`, opacity: 1 },
-      { transform: `translate(${Math.random() * 200 - 100}px, ${window.innerHeight + 100}px) rotate(${Math.random() * 720}deg)`, opacity: 0 }
-    ], {
-      duration: 2000 + Math.random() * 1000,
-      easing: 'cubic-bezier(0.1, 0.8, 0.9, 0.1)'
-    });
-    
-    animation.onfinish = () => {
-      confetti.remove();
+// Try to load content from external source
+document.addEventListener('DOMContentLoaded', function() {
+    // Method 1: Try to load from a separate JavaScript file
+    // You can rename this file to whatever you want
+    const script = document.createElement('script');
+    script.src = 'content.js';
+    script.onload = function() {
+        console.log('Content loaded successfully');
+        init();
     };
-  }
-  
-  setTimeout(() => {
-    container.remove();
-  }, 3000);
-}
-
-/* ---------------------------
-   Initialize Application
---------------------------- */
-function initializeApp(){
-  // Initialize dropdown
-  rebuildNumDropdown(10);
-  
-  // Load saved quizzes
-  loadSavedQuizzes();
-  
-  // Update UI
-  updatePowerupUI();
-  
-  // Show welcome message
-  setTimeout(() => {
-    toast('Welcome to QuizPro! Upload a PDF to get started.', 3000);
-  }, 1000);
-}
-
-// Start the application
-initializeApp();
+    script.onerror = function() {
+        console.log('Failed to load content.js, using fallback content');
+        loadFallbackContent();
+    };
+    document.head.appendChild(script);
+});
 </script>
 </body>
 </html>
